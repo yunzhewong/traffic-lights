@@ -37,16 +37,16 @@
 #define NORTH_PEDESTRIAN_GREEN 11
 
 // East
-#define NORTH_PEDESTRIAN_RED 12
-#define NORTH_PEDESTRIAN_GREEN 13
+#define EAST_PEDESTRIAN_RED 12
+#define EAST_PEDESTRIAN_GREEN 13
 
 // South
-#define NORTH_PEDESTRIAN_RED 14
-#define NORTH_PEDESTRIAN_GREEN 15
+#define SOUTH_PEDESTRIAN_RED 14
+#define SOUTH_PEDESTRIAN_GREEN 15
 
 // West
-#define NORTH_PEDESTRIAN_RED 16
-#define NORTH_PEDESTRIAN_GREEN 17
+#define WEST_PEDESTRIAN_RED 16
+#define WEST_PEDESTRIAN_GREEN 17
 
 USBConnection usb_connection = USBConnection(0);
 USBConnection debug_connection = USBConnection(1);
@@ -118,29 +118,33 @@ int main() {
     uint8_t read;
     pre_start_blocking_watchdog_pause(read);
 
-    InputGPIO north_pedestrian_request = InputGPIO(HIGH_GPIO); 
-    InputGPIO low_limit = InputGPIO(LOW_GPIO); 
-    OutputGPIO step = OutputGPIO(STEP_GPIO); 
-    OutputGPIO dir = OutputGPIO(DIR_GPIO); 
+    InputGPIO north_pedestrian_request = InputGPIO(NORTH_PEDESTRIAN_REQUEST); 
+    InputGPIO east_pedestrian_request = InputGPIO(EAST_PEDESTRIAN_REQUEST); 
+    InputGPIO south_pedestrian_request = InputGPIO(SOUTH_PEDESTRIAN_REQUEST);
+    InputGPIO west_pedestrian_request = InputGPIO(WEST_PEDESTRIAN_REQUEST);
 
-    bool move_positive = true;
+    OutputGPIO north_south_red = OutputGPIO(NORTH_SOUTH_RED);
+    OutputGPIO north_south_yellow = OutputGPIO(NORTH_SOUTH_YELLOW);
+    OutputGPIO north_south_green = OutputGPIO(NORTH_SOUTH_GREEN);
 
-    dir.enable();
-    step.enable();
+    OutputGPIO east_west_red = OutputGPIO(EAST_WEST_RED);
+    OutputGPIO east_west_yellow = OutputGPIO(EAST_WEST_YELLOW);
+    OutputGPIO east_west_green = OutputGPIO(EAST_WEST_GREEN);
 
+    OutputGPIO north_pedestrian_red = OutputGPIO(NORTH_PEDESTRIAN_RED);
+    OutputGPIO north_pedestrian_green = OutputGPIO(NORTH_PEDESTRIAN_GREEN);
+
+    OutputGPIO east_pedestrian_red = OutputGPIO(EAST_PEDESTRIAN_RED);
+    OutputGPIO east_pedestrian_green = OutputGPIO(EAST_PEDESTRIAN_GREEN);
+
+    OutputGPIO south_pedestrian_red = OutputGPIO(SOUTH_PEDESTRIAN_RED);
+    OutputGPIO south_pedestrian_green = OutputGPIO(SOUTH_PEDESTRIAN_GREEN);
+
+    OutputGPIO west_pedestrian_red = OutputGPIO(WEST_PEDESTRIAN_RED);
+    OutputGPIO west_pedestrian_green = OutputGPIO(WEST_PEDESTRIAN_GREEN);
 
     while (1) {
         check_tasks(read);
-        usb_connection.print("High: %d, Low: %d!\n", high_limit.is_triggered(), low_limit.is_triggered());
-        
-        bool hit_while_positive = move_positive && high_limit.is_triggered();
-        bool hit_while_negative = !move_positive && low_limit.is_triggered(); 
-        if (hit_while_negative || hit_while_positive) {
-            move_positive = !move_positive;
-        }
-        dir.set(move_positive);
-        step.disable();
-        sleep_us(500);
-        step.enable();
+        sleep_ms(100);
     }
 }
