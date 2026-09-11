@@ -16,15 +16,15 @@
 
 // GPIO Settings
 // Pedestrian Requests
-#define SOUTH_PEDESTRIAN_REQUEST 0
-#define EAST_PEDESTRIAN_REQUEST 1
-#define NORTH_PEDESTRIAN_REQUEST 28
-#define WEST_PEDESTRIAN_REQUEST 27
+#define SOUTH_PEDESTRIAN_REQUEST 1
+#define EAST_PEDESTRIAN_REQUEST 0
+#define NORTH_PEDESTRIAN_REQUEST 27
+#define WEST_PEDESTRIAN_REQUEST 28
 
 // North/South
 #define NORTH_SOUTH_RED 3
 #define NORTH_SOUTH_YELLOW 4
-#define NORTH_SOUTH_GREEN 5
+#define NORTH_SOUTH_GREEN 5  // Problematic
 
 // East/West
 #define EAST_WEST_RED 26
@@ -208,14 +208,54 @@ int main() {
     south_pedestrian.set_off();
     west_pedestrian.set_off();
 
+    uint32_t count;
     while (1) {
         check_tasks(read);
-        usb_connection.print("N: %d, E: %d, S: %d, W: %d", north_pedestrian_request.is_triggered(), east_pedestrian_request.is_triggered(), south_pedestrian_request.is_triggered(), west_pedestrian_request.is_triggered());
-        east_west_traffic.set_on();
-        west_pedestrian.set_on();
-        sleep_ms(250);
-        east_west_traffic.set_off();
-        west_pedestrian.set_off();
-        sleep_ms(250);
+        usb_connection.print("N: %d, E: %d, S: %d, W: %d\n", north_pedestrian_request.is_triggered(), east_pedestrian_request.is_triggered(), south_pedestrian_request.is_triggered(), west_pedestrian_request.is_triggered());
+        if (count < 10) {
+            north_south_traffic.set_green();
+            east_pedestrian.set_green();
+            west_pedestrian.set_green();
+            east_west_traffic.set_red();
+            north_pedestrian.set_red();
+            south_pedestrian.set_red();
+        } else if (count < 20) {
+            north_south_traffic.set_yellow();
+            east_pedestrian.set_red();
+            west_pedestrian.set_red();
+            east_west_traffic.set_red();
+            north_pedestrian.set_red();
+            south_pedestrian.set_red();
+        } else if (count < 30) {
+            north_south_traffic.set_red();
+            east_pedestrian.set_red();
+            west_pedestrian.set_red();
+            east_west_traffic.set_red();
+            north_pedestrian.set_red();
+            south_pedestrian.set_red();
+        } else if (count < 40) {
+            north_south_traffic.set_red();
+            east_pedestrian.set_red();
+            west_pedestrian.set_red();
+            east_west_traffic.set_green();
+            north_pedestrian.set_green();
+            south_pedestrian.set_green();
+        } else if (count < 50) {
+            north_south_traffic.set_red();
+            east_pedestrian.set_red();
+            west_pedestrian.set_red();
+            east_west_traffic.set_yellow();
+            north_pedestrian.set_red();
+            south_pedestrian.set_red();
+        } else if (count < 60) {
+            north_south_traffic.set_red();
+            east_pedestrian.set_red();
+            west_pedestrian.set_red();
+            east_west_traffic.set_red();
+            north_pedestrian.set_red();
+            south_pedestrian.set_red();
+        }
+        count = (count + 1) % 60;
+        sleep_ms(100);
     }
 }
