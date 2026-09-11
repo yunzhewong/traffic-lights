@@ -16,36 +16,36 @@
 
 // GPIO Settings
 // Pedestrian Requests
-#define NORTH_PEDESTRIAN_REQUEST 0
+#define SOUTH_PEDESTRIAN_REQUEST 0
 #define EAST_PEDESTRIAN_REQUEST 1
-#define SOUTH_PEDESTRIAN_REQUEST 2
-#define WEST_PEDESTRIAN_REQUEST 3
+#define NORTH_PEDESTRIAN_REQUEST 28
+#define WEST_PEDESTRIAN_REQUEST 27
 
 // North/South
-#define NORTH_SOUTH_RED 4
-#define NORTH_SOUTH_YELLOW 5
-#define NORTH_SOUTH_GREEN 6
+#define NORTH_SOUTH_RED 3
+#define NORTH_SOUTH_YELLOW 4
+#define NORTH_SOUTH_GREEN 5
 
 // East/West
-#define EAST_WEST_RED 7
-#define EAST_WEST_YELLOW 8
-#define EAST_WEST_GREEN 9
+#define EAST_WEST_RED 26
+#define EAST_WEST_YELLOW 22
+#define EAST_WEST_GREEN 21
 
 // Pedestrians
 // North
-#define NORTH_PEDESTRIAN_RED 10
-#define NORTH_PEDESTRIAN_GREEN 11
+#define NORTH_PEDESTRIAN_RED 20
+#define NORTH_PEDESTRIAN_GREEN 19
 
 // East
-#define EAST_PEDESTRIAN_RED 12
-#define EAST_PEDESTRIAN_GREEN 13
+#define EAST_PEDESTRIAN_RED 8
+#define EAST_PEDESTRIAN_GREEN 9
 
 // South
-#define SOUTH_PEDESTRIAN_RED 14
-#define SOUTH_PEDESTRIAN_GREEN 15
+#define SOUTH_PEDESTRIAN_RED 6
+#define SOUTH_PEDESTRIAN_GREEN 7
 
 // West
-#define WEST_PEDESTRIAN_RED 16
+#define WEST_PEDESTRIAN_RED 18
 #define WEST_PEDESTRIAN_GREEN 17
 
 USBConnection usb_connection = USBConnection(0);
@@ -105,6 +105,76 @@ class OutputGPIO {
         uint pin;
 };
 
+class TrafficLight {
+    public:
+        TrafficLight(uint red_pin, uint yellow_pin, uint green_pin): red(red_pin), yellow(yellow_pin), green(green_pin) {
+        }
+
+        void set_on() {
+            this->red.enable();
+            this->yellow.enable();
+            this->green.enable();
+        }
+
+        void set_red() {
+            this->red.enable();
+            this->yellow.disable();
+            this->green.disable();
+        }
+
+        void set_yellow() {
+            this->red.disable();
+            this->yellow.enable();
+            this->green.disable();
+        }
+
+        void set_green() {
+            this->red.disable();
+            this->yellow.disable();
+            this->green.enable();
+        }
+
+        void set_off() {
+            this->red.disable();
+            this->yellow.disable();
+            this->green.disable();
+        }
+    private:
+        OutputGPIO red;
+        OutputGPIO yellow;
+        OutputGPIO green;
+};
+
+class PedestrianLight {
+    public:
+        PedestrianLight(uint red_pin, uint green_pin): red(red_pin), green(green_pin) {
+        }
+
+        void set_on() {
+            this->red.enable();
+            this->green.enable();
+        }
+
+
+        void set_red() {
+            this->red.enable();
+            this->green.disable();
+        }
+
+        void set_green() {
+            this->red.disable();
+            this->green.enable();
+        }
+
+        void set_off() {
+            this->red.disable();
+            this->green.disable();
+        }
+    private:
+        OutputGPIO red;
+        OutputGPIO green;
+};
+
 int main() {
     // ----------- SETUP --------------
     stdio_init_all();
@@ -123,28 +193,29 @@ int main() {
     InputGPIO south_pedestrian_request = InputGPIO(SOUTH_PEDESTRIAN_REQUEST);
     InputGPIO west_pedestrian_request = InputGPIO(WEST_PEDESTRIAN_REQUEST);
 
-    OutputGPIO north_south_red = OutputGPIO(NORTH_SOUTH_RED);
-    OutputGPIO north_south_yellow = OutputGPIO(NORTH_SOUTH_YELLOW);
-    OutputGPIO north_south_green = OutputGPIO(NORTH_SOUTH_GREEN);
+    TrafficLight north_south_traffic = TrafficLight(NORTH_SOUTH_RED, NORTH_SOUTH_YELLOW, NORTH_SOUTH_GREEN);
+    TrafficLight east_west_traffic = TrafficLight(EAST_WEST_RED, EAST_WEST_YELLOW, EAST_WEST_GREEN);
 
-    OutputGPIO east_west_red = OutputGPIO(EAST_WEST_RED);
-    OutputGPIO east_west_yellow = OutputGPIO(EAST_WEST_YELLOW);
-    OutputGPIO east_west_green = OutputGPIO(EAST_WEST_GREEN);
+    PedestrianLight north_pedestrian = PedestrianLight(NORTH_PEDESTRIAN_RED, NORTH_PEDESTRIAN_GREEN);
+    PedestrianLight east_pedestrian = PedestrianLight(EAST_PEDESTRIAN_RED, EAST_PEDESTRIAN_GREEN);
+    PedestrianLight south_pedestrian = PedestrianLight(SOUTH_PEDESTRIAN_RED, SOUTH_PEDESTRIAN_GREEN);
+    PedestrianLight west_pedestrian = PedestrianLight(WEST_PEDESTRIAN_RED, WEST_PEDESTRIAN_GREEN);
 
-    OutputGPIO north_pedestrian_red = OutputGPIO(NORTH_PEDESTRIAN_RED);
-    OutputGPIO north_pedestrian_green = OutputGPIO(NORTH_PEDESTRIAN_GREEN);
-
-    OutputGPIO east_pedestrian_red = OutputGPIO(EAST_PEDESTRIAN_RED);
-    OutputGPIO east_pedestrian_green = OutputGPIO(EAST_PEDESTRIAN_GREEN);
-
-    OutputGPIO south_pedestrian_red = OutputGPIO(SOUTH_PEDESTRIAN_RED);
-    OutputGPIO south_pedestrian_green = OutputGPIO(SOUTH_PEDESTRIAN_GREEN);
-
-    OutputGPIO west_pedestrian_red = OutputGPIO(WEST_PEDESTRIAN_RED);
-    OutputGPIO west_pedestrian_green = OutputGPIO(WEST_PEDESTRIAN_GREEN);
+    north_south_traffic.set_off();
+    east_west_traffic.set_off();
+    north_pedestrian.set_off();
+    east_pedestrian.set_off();
+    south_pedestrian.set_off();
+    west_pedestrian.set_off();
 
     while (1) {
         check_tasks(read);
-        sleep_ms(100);
+        usb_connection.print("N: %d, E: %d, S: %d, W: %d", north_pedestrian_request.is_triggered(), east_pedestrian_request.is_triggered(), south_pedestrian_request.is_triggered(), west_pedestrian_request.is_triggered());
+        east_west_traffic.set_on();
+        west_pedestrian.set_on();
+        sleep_ms(250);
+        east_west_traffic.set_off();
+        west_pedestrian.set_off();
+        sleep_ms(250);
     }
 }
