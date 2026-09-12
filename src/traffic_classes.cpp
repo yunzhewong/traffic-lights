@@ -56,13 +56,32 @@ void PedestrianLight::set_off() {
   this->green.disable();
 }
 
-PedestrianRequests::PedestrianRequests(uint north, uint east, uint south,
+PedestrianRequestButtons::PedestrianRequestButtons(uint north, uint east, uint south,
                                        uint west)
     : north(north), east(east), south(south), west(west) {}
 
-    void PedestrianRequests::add_callback(gpio_irq_callback_t callback) {
+    void PedestrianRequestButtons::add_callback(gpio_irq_callback_t callback) {
   north.add_callback(callback);
   east.add_callback(callback);
   south.add_callback(callback);
   west.add_callback(callback);
+}
+
+DirectionalLights::DirectionalLights(TrafficLight traffic, PedestrianLight ped1,
+                                     PedestrianLight ped2)
+    : traffic(traffic), ped1(ped1), ped2(ped2) {};
+void DirectionalLights::set_red() {
+  this->traffic.set_red();
+  this->ped1.set_red();
+  this->ped2.set_red();
+}
+void DirectionalLights::set_yellow() {
+  this->traffic.set_yellow();
+  this->ped1.set_red();
+  this->ped2.set_red();
+}
+void DirectionalLights::set_off() {
+  this->traffic.set_off();
+  this->ped1.set_off();
+  this->ped2.set_off();
 }

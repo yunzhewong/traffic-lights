@@ -31,6 +31,19 @@ class PedestrianLight {
         OutputGPIO green;
 };
 
+class DirectionalLights {
+    public:
+      DirectionalLights(TrafficLight traffic, PedestrianLight ped1,
+                        PedestrianLight ped2);
+      void set_red();
+      void set_yellow();
+      void set_off();
+
+      TrafficLight traffic;
+      PedestrianLight ped1;
+      PedestrianLight ped2;
+};
+
 class PedestrianRequestButtons {
     public:
       PedestrianRequestButtons(uint north, uint east, uint south, uint west);

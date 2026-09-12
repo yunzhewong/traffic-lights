@@ -48,7 +48,7 @@
 #define YELLOW_DURATION 2
 #define GREEN_DURATION 5
 #define PEDESTRIAN_GREEN_DURATION 2
-#define PEDESTRIAN_RED_FLASH_PERIOD 1
+#define FLASH_PERIOD 1
 
 USBConnection usb_connection = USBConnection(0);
 USBConnection debug_connection = USBConnection(1);
@@ -68,6 +68,7 @@ pedestrian_request_t copy_pedestrian_request(pedestrian_request_t current) {
     output.east = current.east;
     output.south = current.south;
     output.west = current.west;
+    return output;
 }
 
 enum TrafficState {
@@ -102,9 +103,9 @@ double calc_time_since_transition_s(uint64_t current_time_us, uint64_t transitio
     return (double)(current_time_us - transition_time_us) / 1e6;
 }
 
-bool pedestrian_light_on_when_traffic_green(uint64_t transition_time_us) {
+bool flashing_toggle(uint64_t transition_time_us) {
     double time_since_transition_s = calc_time_since_transition_s(time_us_64(), transition_time_us);
-    return ((int)(time_since_transition_s / PEDESTRIAN_RED_FLASH_PERIOD) % 2 == 1);
+    return ((int)(time_since_transition_s / FLASH_PERIOD) % 2 == 1);
 }
 
 void transition_after_duration(uint64_t& transition_time_us, uint32_t duration_s, TrafficState& state, TrafficState target_state, pedestrian_request_t& request_before_transition) {
@@ -124,20 +125,18 @@ int main() {
     PedestrianRequestButtons requests = PedestrianRequestButtons(NORTH_PEDESTRIAN_REQUEST, EAST_PEDESTRIAN_REQUEST, SOUTH_PEDESTRIAN_REQUEST, WEST_PEDESTRIAN_REQUEST);
     requests.add_callback(&handle_pedestrian_request); 
 
-    TrafficLight north_south_traffic = TrafficLight(NORTH_SOUTH_RED, NORTH_SOUTH_YELLOW, NORTH_SOUTH_GREEN);
-    TrafficLight east_west_traffic = TrafficLight(EAST_WEST_RED, EAST_WEST_YELLOW, EAST_WEST_GREEN);
-
-    PedestrianLight north_pedestrian = PedestrianLight(NORTH_PEDESTRIAN_RED, NORTH_PEDESTRIAN_GREEN);
-    PedestrianLight east_pedestrian = PedestrianLight(EAST_PEDESTRIAN_RED, EAST_PEDESTRIAN_GREEN);
-    PedestrianLight south_pedestrian = PedestrianLight(SOUTH_PEDESTRIAN_RED, SOUTH_PEDESTRIAN_GREEN);
-    PedestrianLight west_pedestrian = PedestrianLight(WEST_PEDESTRIAN_RED, WEST_PEDESTRIAN_GREEN);
-
-    north_south_traffic.set_off();
-    east_west_traffic.set_off();
-    north_pedestrian.set_off();
-    east_pedestrian.set_off();
-    south_pedestrian.set_off();
-    west_pedestrian.set_off();
+    DirectionalLights north_south_direction = DirectionalLights(
+        TrafficLight(NORTH_SOUTH_RED, NORTH_SOUTH_YELLOW, NORTH_SOUTH_GREEN),
+        PedestrianLight(EAST_PEDESTRIAN_RED, EAST_PEDESTRIAN_GREEN),
+        PedestrianLight(WEST_PEDESTRIAN_RED, WEST_PEDESTRIAN_GREEN)
+    );
+    DirectionalLights east_west_direction = DirectionalLights(
+        TrafficLight(EAST_WEST_RED, EAST_WEST_YELLOW, EAST_WEST_GREEN), 
+        PedestrianLight(NORTH_PEDESTRIAN_RED, NORTH_PEDESTRIAN_GREEN),
+        PedestrianLight(SOUTH_PEDESTRIAN_RED, SOUTH_PEDESTRIAN_GREEN)
+    );
+    north_south_direction.set_off();
+    east_west_direction.set_off();
 
     TrafficState state = TrafficState::RedBeforeNorthSouth;
     pedestrian_request_t request_before_transition = pedestrian_request;
@@ -149,12 +148,8 @@ int main() {
 
         switch (state) {
             case RedBeforeNorthSouth: {
-                north_south_traffic.set_red();
-                east_pedestrian.set_red();
-                west_pedestrian.set_red();
-                east_west_traffic.set_red();
-                north_pedestrian.set_red();
-                south_pedestrian.set_red();
+                north_south_direction.set_red();
+                east_west_direction.set_red();
 
                 TrafficState target_state = NorthSouthGreen;
                 if (pedestrian_request.east || pedestrian_request.east) {
@@ -164,46 +159,37 @@ int main() {
                 break;
             }
             case NorthSouthPedestrian: {
-                north_south_traffic.set_red();
+                north_south_direction.traffic.set_red();
                 if (pedestrian_request.east) { // Turn on mid transition 
-                    east_pedestrian.set_green();
+                    north_south_direction.ped1.set_green();
                 }
                 if (pedestrian_request.west) { // Turn on mid transition
-                    west_pedestrian.set_green();
+                    north_south_direction.ped2.set_green();
                 }
-                east_west_traffic.set_red();
-                north_pedestrian.set_red();
-                south_pedestrian.set_red();
+                east_west_direction.set_red();
                 transition_after_duration(transition_time_us, PEDESTRIAN_GREEN_DURATION, state, TrafficState::NorthSouthGreen, request_before_transition);
                 break;
             }
             case NorthSouthGreen: {
-                north_south_traffic.set_green();
-                bool ped_on = pedestrian_light_on_when_traffic_green(transition_time_us);
-                if (request_before_transition.east && ped_on) { // Should not turn on mid transition
-                    east_pedestrian.set_red();
+                north_south_direction.traffic.set_green();
+                bool flash = flashing_toggle(transition_time_us);
+                if (request_before_transition.east && flash) { // Should not turn on mid transition
+                    north_south_direction.ped1.set_red();
                 } else {
-                    east_pedestrian.set_off();
+                    north_south_direction.ped1.set_off();
                 }
-                if (request_before_transition.west && ped_on) { // Should not turn on mid transition
-                    west_pedestrian.set_red();
+                if (request_before_transition.west && flash) { // Should not turn on mid transition
+                    north_south_direction.ped2.set_red();
                 } else {
-                    west_pedestrian.set_off();
+                    north_south_direction.ped2.set_off();
                 }
-                east_west_traffic.set_red();
-                north_pedestrian.set_red();
-                south_pedestrian.set_red();
+                east_west_direction.set_red();
                 transition_after_duration(transition_time_us, GREEN_DURATION, state, TrafficState::NorthSouthYellow, request_before_transition);
                 break;
             }
             case NorthSouthYellow: {
-                north_south_traffic.set_yellow();
-                east_pedestrian.set_red();
-                west_pedestrian.set_red();
-                east_west_traffic.set_red();
-                north_pedestrian.set_red();
-                south_pedestrian.set_red();
-
+                north_south_direction.set_red();
+                east_west_direction.set_red();
                 transition_after_duration(transition_time_us, YELLOW_DURATION, state, TrafficState::RedBeforeEastWest, request_before_transition);
                 break;
             }
