@@ -31,9 +31,9 @@ class PedestrianLight {
         OutputGPIO green;
 };
 
-class PedestrianRequests {
+class PedestrianRequestButtons {
     public:
-      PedestrianRequests(uint north, uint east, uint south, uint west);
+      PedestrianRequestButtons(uint north, uint east, uint south, uint west);
       void add_callback(gpio_irq_callback_t callback);
 
     private:
