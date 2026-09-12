@@ -3,7 +3,6 @@
 #include <pico/stdio.h>
 
 #include "math.h"
-#include "pico/time.h"
 #include "usb.h"
 #include "usb_with_watchdog.cpp"
 #include "traffic_classes.h"
@@ -48,6 +47,7 @@
 #define YELLOW_DURATION 2
 #define GREEN_DURATION 5
 #define PEDESTRIAN_GREEN_DURATION 2
+#define PEDESTRIAN_CUTOFF 3
 #define FLASH_PERIOD 1
 
 USBConnection usb_connection = USBConnection(0);
@@ -80,7 +80,6 @@ enum TrafficState {
     EastWestPedestrian,
     EastWestGreen,
     EastWestYellow,
-    EastWestRed,
     Error
 };
 
@@ -106,6 +105,14 @@ double calc_time_since_transition_s(uint64_t current_time_us, uint64_t transitio
 bool flashing_toggle(uint64_t transition_time_us) {
     double time_since_transition_s = calc_time_since_transition_s(time_us_64(), transition_time_us);
     return ((int)(time_since_transition_s / FLASH_PERIOD) % 2 == 1);
+}
+
+bool flashing_toggle_with_cutoff(uint64_t transition_time_us, double cutoff_s) {
+    double time_since_transition_s = calc_time_since_transition_s(time_us_64(), transition_time_us);
+    if (time_since_transition_s > cutoff_s) {
+        return false;
+    }
+    return flashing_toggle(transition_time_us);
 }
 
 void transition_after_duration(uint64_t& transition_time_us, uint32_t duration_s, TrafficState& state, TrafficState target_state, pedestrian_request_t& request_before_transition) {
@@ -152,100 +159,72 @@ int main() {
                 east_west_direction.set_red();
 
                 TrafficState target_state = NorthSouthGreen;
-                if (pedestrian_request.east || pedestrian_request.east) {
+                if (pedestrian_request.east || pedestrian_request.west) {
                     target_state = NorthSouthPedestrian;
                 }
                 transition_after_duration(transition_time_us, RED_DURATION, state, target_state, request_before_transition);
                 break;
             }
             case NorthSouthPedestrian: {
-                north_south_direction.traffic.set_red();
-                if (pedestrian_request.east) { // Turn on mid transition 
-                    north_south_direction.ped1.set_green();
-                }
-                if (pedestrian_request.west) { // Turn on mid transition
-                    north_south_direction.ped2.set_green();
-                }
+                north_south_direction.handle_pedestrian(pedestrian_request.east, pedestrian_request.east);
                 east_west_direction.set_red();
                 transition_after_duration(transition_time_us, PEDESTRIAN_GREEN_DURATION, state, TrafficState::NorthSouthGreen, request_before_transition);
                 break;
             }
             case NorthSouthGreen: {
-                north_south_direction.traffic.set_green();
-                bool flash = flashing_toggle(transition_time_us);
-                if (request_before_transition.east && flash) { // Should not turn on mid transition
-                    north_south_direction.ped1.set_red();
-                } else {
-                    north_south_direction.ped1.set_off();
-                }
-                if (request_before_transition.west && flash) { // Should not turn on mid transition
-                    north_south_direction.ped2.set_red();
-                } else {
-                    north_south_direction.ped2.set_off();
-                }
+                bool flash_off = flashing_toggle_with_cutoff(transition_time_us, PEDESTRIAN_CUTOFF);
+                north_south_direction.handle_green(flash_off, request_before_transition.east, request_before_transition.west);
                 east_west_direction.set_red();
                 transition_after_duration(transition_time_us, GREEN_DURATION, state, TrafficState::NorthSouthYellow, request_before_transition);
                 break;
             }
             case NorthSouthYellow: {
-                north_south_direction.set_red();
+                north_south_direction.set_yellow();
                 east_west_direction.set_red();
                 transition_after_duration(transition_time_us, YELLOW_DURATION, state, TrafficState::RedBeforeEastWest, request_before_transition);
                 break;
             }
-            case RedBeforeEastWest:
-            case EastWestPedestrian:
-            case EastWestGreen:
-            case EastWestYellow:
-            case EastWestRed:
-                break;
-            case Error:
+            case RedBeforeEastWest: {
+                north_south_direction.set_red();
+                east_west_direction.set_red();
+
+                TrafficState target_state = EastWestGreen;
+                if (pedestrian_request.east || pedestrian_request.west) {
+                    target_state = EastWestPedestrian;
+                }
+                transition_after_duration(transition_time_us, RED_DURATION, state, target_state, request_before_transition);
                 break;
             }
-        if (count < 10) {
-            north_south_traffic.set_green();
-            east_pedestrian.set_green();
-            west_pedestrian.set_green();
-            east_west_traffic.set_red();
-            north_pedestrian.set_red();
-            south_pedestrian.set_red();
-        } else if (count < 20) {
-            north_south_traffic.set_yellow();
-            east_pedestrian.set_red();
-            west_pedestrian.set_red();
-            east_west_traffic.set_red();
-            north_pedestrian.set_red();
-            south_pedestrian.set_red();
-        } else if (count < 30) {
-            north_south_traffic.set_red();
-            east_pedestrian.set_red();
-            west_pedestrian.set_red();
-            east_west_traffic.set_red();
-            north_pedestrian.set_red();
-            south_pedestrian.set_red();
-        } else if (count < 40) {
-            north_south_traffic.set_red();
-            east_pedestrian.set_red();
-            west_pedestrian.set_red();
-            east_west_traffic.set_green();
-            north_pedestrian.set_green();
-            south_pedestrian.set_green();
-        } else if (count < 50) {
-            north_south_traffic.set_red();
-            east_pedestrian.set_red();
-            west_pedestrian.set_red();
-            east_west_traffic.set_yellow();
-            north_pedestrian.set_red();
-            south_pedestrian.set_red();
-        } else if (count < 60) {
-            north_south_traffic.set_red();
-            east_pedestrian.set_red();
-            west_pedestrian.set_red();
-            east_west_traffic.set_red();
-            north_pedestrian.set_red();
-            south_pedestrian.set_red();
+            case EastWestPedestrian: {
+                north_south_direction.set_red();
+                east_west_direction.handle_pedestrian(pedestrian_request.north, pedestrian_request.south);
+                transition_after_duration(transition_time_us, PEDESTRIAN_GREEN_DURATION, state, TrafficState::EastWestGreen, request_before_transition);
+                break;
+            }
+            case EastWestGreen: {
+                bool flash_off = flashing_toggle_with_cutoff(transition_time_us, PEDESTRIAN_CUTOFF);
+                north_south_direction.set_red();
+                east_west_direction.handle_green(flash_off, request_before_transition.north, request_before_transition.south);
+                transition_after_duration(transition_time_us, GREEN_DURATION, state, TrafficState::EastWestYellow, request_before_transition);
+                break;
+            }
+            case EastWestYellow: {
+                north_south_direction.set_red();
+                east_west_direction.set_yellow();
+                transition_after_duration(transition_time_us, YELLOW_DURATION, state, TrafficState::RedBeforeNorthSouth, request_before_transition);
+                break;
+            }
+            case Error: {
+                bool flash = flashing_toggle(transition_time_us);
+                if (flash) {
+                    north_south_direction.set_red();
+                    east_west_direction.set_red();
+                } else {
+                    north_south_direction.set_off();
+                    east_west_direction.set_off();
+                }
+                break;
+            }
         }
-        count = (count + 1) % 60;
-        sleep_ms(100);
     }
 }
