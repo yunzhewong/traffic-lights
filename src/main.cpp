@@ -48,6 +48,25 @@
 USBConnection usb_connection = USBConnection(0);
 USBConnection debug_connection = USBConnection(1);
 
+volatile bool north_pedestrian_requested = false;
+volatile bool east_pedestrian_requested = false;
+volatile bool south_pedestrian_requested = false;
+volatile bool west_pedestrian_requested = false;
+
+void pedestrian_request(uint gpio, uint32_t events) {
+    if (events & GPIO_IRQ_EDGE_RISE) {
+        if (gpio == NORTH_PEDESTRIAN_REQUEST) {
+            north_pedestrian_requested = true;
+        } else if (gpio == EAST_PEDESTRIAN_REQUEST) {
+            east_pedestrian_requested = true;
+        } else if (gpio == SOUTH_PEDESTRIAN_REQUEST) {
+            south_pedestrian_requested = true;
+        } else if (gpio == WEST_PEDESTRIAN_REQUEST) {
+            west_pedestrian_requested = true;
+        }
+    }
+}
+
 class InputGPIO {
     public:
         InputGPIO(uint pin) {
@@ -59,6 +78,15 @@ class InputGPIO {
 
         bool is_triggered() {
             return !gpio_get(this->pin);
+        }
+
+        void add_callback(gpio_irq_callback_t callback) {
+            gpio_set_irq_enabled_with_callback(
+                this->pin,
+                GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE,
+                true,
+                callback
+            );
         }
 
     private: 
@@ -172,10 +200,14 @@ int main() {
     uint8_t read;
     usb_with_watchdog_enable(usb_connection, read);
 
-    InputGPIO north_pedestrian_request = InputGPIO(NORTH_PEDESTRIAN_REQUEST); 
-    InputGPIO east_pedestrian_request = InputGPIO(EAST_PEDESTRIAN_REQUEST); 
+    InputGPIO north_pedestrian_request = InputGPIO(NORTH_PEDESTRIAN_REQUEST);
+    north_pedestrian_request.add_callback(&pedestrian_request); 
+    InputGPIO east_pedestrian_request = InputGPIO(EAST_PEDESTRIAN_REQUEST);
+    east_pedestrian_request.add_callback(&pedestrian_request); 
     InputGPIO south_pedestrian_request = InputGPIO(SOUTH_PEDESTRIAN_REQUEST);
+    south_pedestrian_request.add_callback(&pedestrian_request); 
     InputGPIO west_pedestrian_request = InputGPIO(WEST_PEDESTRIAN_REQUEST);
+    west_pedestrian_request.add_callback(&pedestrian_request); 
 
     TrafficLight north_south_traffic = TrafficLight(NORTH_SOUTH_RED, NORTH_SOUTH_YELLOW, NORTH_SOUTH_GREEN);
     TrafficLight east_west_traffic = TrafficLight(EAST_WEST_RED, EAST_WEST_YELLOW, EAST_WEST_GREEN);
