@@ -4,7 +4,7 @@
 
 #include "math.h"
 #include "usb.h"
-#include "usb_with_watchdog.cpp"
+#include "usb_with_watchdog.h"
 #include "traffic_classes.h"
 
 // GPIO Settings
@@ -48,7 +48,7 @@
 #define GREEN_DURATION 5
 #define PEDESTRIAN_GREEN_DURATION 2
 #define PEDESTRIAN_CUTOFF 3
-#define FLASH_PERIOD 1
+#define FLASH_PERIOD 0.5
 
 USBConnection usb_connection = USBConnection(0);
 USBConnection debug_connection = USBConnection(1);
@@ -166,7 +166,7 @@ int main() {
                 break;
             }
             case NorthSouthPedestrian: {
-                north_south_direction.handle_pedestrian(pedestrian_request.east, pedestrian_request.east);
+                north_south_direction.handle_pedestrian(pedestrian_request.east, pedestrian_request.west);
                 east_west_direction.set_red();
                 transition_after_duration(transition_time_us, PEDESTRIAN_GREEN_DURATION, state, TrafficState::NorthSouthGreen, request_before_transition);
                 break;
