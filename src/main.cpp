@@ -9,7 +9,7 @@
 #include "tusb_config.h"
 #include "usb.h"
 #include "usb_with_watchdog.cpp"
-
+#include "gpio_classes.h"
 
 // GPIO Settings
 // Pedestrian Requests
@@ -66,57 +66,6 @@ void pedestrian_request(uint gpio, uint32_t events) {
         }
     }
 }
-
-class InputGPIO {
-    public:
-        InputGPIO(uint pin) {
-            this->pin = pin;
-            gpio_init(pin);
-            gpio_set_dir(pin, GPIO_IN);
-            gpio_pull_up(pin);
-        }
-
-        bool is_triggered() {
-            return !gpio_get(this->pin);
-        }
-
-        void add_callback(gpio_irq_callback_t callback) {
-            gpio_set_irq_enabled_with_callback(
-                this->pin,
-                GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE,
-                true,
-                callback
-            );
-        }
-
-    private: 
-        uint pin;
-};
-
-class OutputGPIO {
-    public:
-        OutputGPIO(uint pin) {
-            this->pin = pin;
-            gpio_init(pin);
-            gpio_set_dir(pin, GPIO_OUT);
-            gpio_put(pin, false);
-        }
-
-        void set(bool value) {
-            gpio_put(this->pin, value);
-        }
-
-        void enable() {
-            gpio_put(this->pin, true);
-        }
-
-        void disable() {
-            gpio_put(this->pin, false);
-        }
-
-    private:
-        uint pin;
-};
 
 class TrafficLight {
     public:
