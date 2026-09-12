@@ -1,5 +1,7 @@
+#include "device/usbd.h"
 #include "hardware/watchdog.h"
 #include "usb.h"
+#include <pico/time.h>
 
 // Watchdog Settings
 #define WATCHDOG_PERIOD 2000  // If not updated for this duration, restart the program

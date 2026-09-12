@@ -22,6 +22,7 @@ target_link_libraries(traffic_lights
     hardware_adc
     hardware_dma
     hardware_watchdog
+    hardware_gpio
 )
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

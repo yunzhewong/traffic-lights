@@ -2,14 +2,12 @@
 #include <pico/stdio.h>
 
 #include "math.h"
-#include "pico/bootrom.h"
-#include "pico/stdlib.h"
 #include "pico/time.h"
-#include "tusb.h"
 #include "tusb_config.h"
 #include "usb.h"
 #include "usb_with_watchdog.cpp"
 #include "gpio_classes.h"
+#include "traffic_classes.h"
 
 // GPIO Settings
 // Pedestrian Requests
@@ -66,77 +64,6 @@ void pedestrian_request(uint gpio, uint32_t events) {
         }
     }
 }
-
-class TrafficLight {
-    public:
-        TrafficLight(uint red_pin, uint yellow_pin, uint green_pin): red(red_pin), yellow(yellow_pin), green(green_pin) {
-        }
-
-        void set_on() {
-            this->red.enable();
-            this->yellow.enable();
-            this->green.enable();
-        }
-
-        void set_red() {
-            this->red.enable();
-            this->yellow.disable();
-            this->green.disable();
-        }
-
-        void set_yellow() {
-            this->red.disable();
-            this->yellow.enable();
-            this->green.disable();
-        }
-
-        void set_green() {
-            this->red.disable();
-            this->yellow.disable();
-            this->green.enable();
-        }
-
-        void set_off() {
-            this->red.disable();
-            this->yellow.disable();
-            this->green.disable();
-        }
-    private:
-        OutputGPIO red;
-        OutputGPIO yellow;
-        OutputGPIO green;
-};
-
-class PedestrianLight {
-    public:
-        PedestrianLight(uint red_pin, uint green_pin): red(red_pin), green(green_pin) {
-        }
-
-        void set_on() {
-            this->red.enable();
-            this->green.enable();
-        }
-
-
-        void set_red() {
-            this->red.enable();
-            this->green.disable();
-        }
-
-        void set_green() {
-            this->red.disable();
-            this->green.enable();
-        }
-
-        void set_off() {
-            this->red.disable();
-            this->green.disable();
-        }
-    private:
-        OutputGPIO red;
-        OutputGPIO green;
-};
-
 int main() {
     // ----------- SETUP --------------
     stdio_init_all();
@@ -149,14 +76,8 @@ int main() {
     uint8_t read;
     usb_with_watchdog_enable(usb_connection, read);
 
-    InputGPIO north_pedestrian_request = InputGPIO(NORTH_PEDESTRIAN_REQUEST);
-    north_pedestrian_request.add_callback(&pedestrian_request); 
-    InputGPIO east_pedestrian_request = InputGPIO(EAST_PEDESTRIAN_REQUEST);
-    east_pedestrian_request.add_callback(&pedestrian_request); 
-    InputGPIO south_pedestrian_request = InputGPIO(SOUTH_PEDESTRIAN_REQUEST);
-    south_pedestrian_request.add_callback(&pedestrian_request); 
-    InputGPIO west_pedestrian_request = InputGPIO(WEST_PEDESTRIAN_REQUEST);
-    west_pedestrian_request.add_callback(&pedestrian_request); 
+    PedestrianRequests requests = PedestrianRequests(NORTH_PEDESTRIAN_REQUEST, EAST_PEDESTRIAN_REQUEST, SOUTH_PEDESTRIAN_REQUEST, WEST_PEDESTRIAN_REQUEST);
+    requests.add_callback(&pedestrian_request); 
 
     TrafficLight north_south_traffic = TrafficLight(NORTH_SOUTH_RED, NORTH_SOUTH_YELLOW, NORTH_SOUTH_GREEN);
     TrafficLight east_west_traffic = TrafficLight(EAST_WEST_RED, EAST_WEST_YELLOW, EAST_WEST_GREEN);
@@ -177,7 +98,6 @@ int main() {
     while (1) {
         usb_with_watchdog_check_tasks();
         usb_connection.read(&read, 1);
-        usb_connection.print("N: %d, E: %d, S: %d, W: %d\n", north_pedestrian_request.is_triggered(), east_pedestrian_request.is_triggered(), south_pedestrian_request.is_triggered(), west_pedestrian_request.is_triggered());
         if (count < 10) {
             north_south_traffic.set_green();
             east_pedestrian.set_green();
