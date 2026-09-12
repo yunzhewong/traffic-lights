@@ -1,7 +1,6 @@
 #include <bsp/board_api.h>
 #include <pico/stdio.h>
 
-#include "hardware/watchdog.h"
 #include "math.h"
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
@@ -9,10 +8,8 @@
 #include "tusb.h"
 #include "tusb_config.h"
 #include "usb.h"
+#include "usb_with_watchdog.cpp"
 
-// Watchdog Settings
-#define WATCHDOG_PERIOD 2000  // If not updated for this duration, restart the program
-#define WATCHDOG_DELAY  1000  // Duration before the program starts where nothing happens
 
 // GPIO Settings
 // Pedestrian Requests
@@ -24,7 +21,7 @@
 // North/South
 #define NORTH_SOUTH_RED 3
 #define NORTH_SOUTH_YELLOW 4
-#define NORTH_SOUTH_GREEN 5  // Problematic
+#define NORTH_SOUTH_GREEN 5 
 
 // East/West
 #define EAST_WEST_RED 26
@@ -50,18 +47,6 @@
 
 USBConnection usb_connection = USBConnection(0);
 USBConnection debug_connection = USBConnection(1);
-
-void check_tasks(uint8_t& read_reset) {
-    tud_task();
-    watchdog_update();
-    usb_connection.read(&read_reset, 1);
-}
-
-void pre_start_blocking_watchdog_pause(uint8_t& read_reset) {
-    while (to_ms_since_boot(get_absolute_time()) < WATCHDOG_DELAY) {
-        check_tasks(read_reset);
-    }
-}
 
 class InputGPIO {
     public:
@@ -184,9 +169,8 @@ int main() {
     // Add a watchdog that makes sure that memory crashes are fixable for a few seconds
     // The watchdog is a hardware timer that decrements until 0, restarting if 0 is reached.
     //
-    watchdog_enable(WATCHDOG_PERIOD, true);
     uint8_t read;
-    pre_start_blocking_watchdog_pause(read);
+    usb_with_watchdog_enable(usb_connection, read);
 
     InputGPIO north_pedestrian_request = InputGPIO(NORTH_PEDESTRIAN_REQUEST); 
     InputGPIO east_pedestrian_request = InputGPIO(EAST_PEDESTRIAN_REQUEST); 
@@ -210,7 +194,8 @@ int main() {
 
     uint32_t count;
     while (1) {
-        check_tasks(read);
+        usb_with_watchdog_check_tasks();
+        usb_connection.read(&read, 1);
         usb_connection.print("N: %d, E: %d, S: %d, W: %d\n", north_pedestrian_request.is_triggered(), east_pedestrian_request.is_triggered(), south_pedestrian_request.is_triggered(), west_pedestrian_request.is_triggered());
         if (count < 10) {
             north_south_traffic.set_green();
