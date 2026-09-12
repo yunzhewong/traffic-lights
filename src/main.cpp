@@ -226,5 +226,6 @@ int main() {
                 break;
             }
         }
+        // To do some light combination validation after states are set
     }
 }

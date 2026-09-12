@@ -95,15 +95,15 @@ void DirectionalLights::handle_pedestrian(bool ped1_request,
     this->ped2.set_green();
   }
 }
-void DirectionalLights::handle_green(bool flash_off, bool stored_ped1_request,
+void DirectionalLights::handle_green(bool pedestrian_flash_off, bool stored_ped1_request,
                                      bool stored_ped2_request) {
   this->traffic.set_green();
-  if (stored_ped1_request && flash_off) { // Should not turn on mid transition
+  if (stored_ped1_request && pedestrian_flash_off) { // Should not turn on mid transition
     this->ped1.set_off();
   } else {
     this->ped1.set_red();
   }
-  if (stored_ped2_request && flash_off) { // Should not turn on mid transition
+  if (stored_ped2_request && pedestrian_flash_off) { // Should not turn on mid transition
     this->ped2.set_off();
   } else {
     this->ped2.set_red();
