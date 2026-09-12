@@ -3,10 +3,8 @@
 
 #include "math.h"
 #include "pico/time.h"
-#include "tusb_config.h"
 #include "usb.h"
 #include "usb_with_watchdog.cpp"
-#include "gpio_classes.h"
 #include "traffic_classes.h"
 
 // GPIO Settings
@@ -16,6 +14,7 @@
 #define NORTH_PEDESTRIAN_REQUEST 27
 #define WEST_PEDESTRIAN_REQUEST 28
 
+// Traffic Lights
 // North/South
 #define NORTH_SOUTH_RED 3
 #define NORTH_SOUTH_YELLOW 4
@@ -65,14 +64,6 @@ void pedestrian_request(uint gpio, uint32_t events) {
     }
 }
 int main() {
-    // ----------- SETUP --------------
-    stdio_init_all();
-    tud_init(BOARD_TUD_RHPORT);
-
-    // ----------- WATCHDOG -----------
-    // Add a watchdog that makes sure that memory crashes are fixable for a few seconds
-    // The watchdog is a hardware timer that decrements until 0, restarting if 0 is reached.
-    //
     uint8_t read;
     usb_with_watchdog_enable(usb_connection, read);
 
