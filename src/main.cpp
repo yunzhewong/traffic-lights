@@ -172,6 +172,8 @@ int main() {
                 break;
             }
             case NorthSouthGreen: {
+                pedestrian_request.east = false; // Find smarter way to do this
+                pedestrian_request.west = false; // Find smarter way to do this
                 bool flash_off = flashing_toggle_with_cutoff(transition_time_us, PEDESTRIAN_CUTOFF);
                 north_south_direction.handle_green(flash_off, request_before_transition.east, request_before_transition.west);
                 east_west_direction.set_red();
@@ -189,7 +191,7 @@ int main() {
                 east_west_direction.set_red();
 
                 TrafficState target_state = EastWestGreen;
-                if (pedestrian_request.east || pedestrian_request.west) {
+                if (pedestrian_request.north || pedestrian_request.south) {
                     target_state = EastWestPedestrian;
                 }
                 transition_after_duration(transition_time_us, RED_DURATION, state, target_state, request_before_transition);
@@ -202,6 +204,8 @@ int main() {
                 break;
             }
             case EastWestGreen: {
+                pedestrian_request.north = false; // Find smarter way to do this
+                pedestrian_request.south = false; // Find smarter way to do this
                 bool flash_off = flashing_toggle_with_cutoff(transition_time_us, PEDESTRIAN_CUTOFF);
                 north_south_direction.set_red();
                 east_west_direction.handle_green(flash_off, request_before_transition.north, request_before_transition.south);
