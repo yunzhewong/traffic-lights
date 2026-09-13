@@ -115,15 +115,21 @@ bool flashing_toggle_with_cutoff(uint64_t transition_time_us, double cutoff_s) {
     return flashing_toggle(transition_time_us);
 }
 
-void transition_after_duration(uint64_t& transition_time_us, uint32_t duration_s, TrafficState& state, TrafficState target_state, pedestrian_request_t& request_before_transition) {
-    uint64_t current_time_us = time_us_64();
-    double time_since_transition_s = calc_time_since_transition_s(current_time_us, transition_time_us);
-    if (time_since_transition_s > duration_s) {
-        state = target_state;
-        transition_time_us = current_time_us;
-        request_before_transition = copy_pedestrian_request(pedestrian_request);
+struct transition_state_t{
+    TrafficState state_enum;
+    pedestrian_request_t request_before;
+    uint64_t transition_time_us;
+
+    void transition_after_duration(uint32_t duration_s, TrafficState target_state) {
+        uint64_t current_time_us = time_us_64();
+        double time_since_transition_s = calc_time_since_transition_s(current_time_us, transition_time_us);
+        if (time_since_transition_s > duration_s) {
+            this->state_enum = target_state;
+            this->transition_time_us = current_time_us;
+            this->request_before = copy_pedestrian_request(pedestrian_request);
+        }
     }
-}
+};
 
 int main() {
     uint8_t read;
@@ -145,15 +151,13 @@ int main() {
     north_south_direction.set_off();
     east_west_direction.set_off();
 
-    TrafficState state = TrafficState::RedBeforeNorthSouth;
-    pedestrian_request_t request_before_transition = pedestrian_request;
-    uint64_t transition_time_us = time_us_64();
+    transition_state_t transition_state { TrafficState::RedBeforeNorthSouth, pedestrian_request, time_us_64()};
 
     while (1) {
         usb_with_watchdog_check_tasks();
         usb_connection.read(&read, 1);
 
-        switch (state) {
+        switch (transition_state.state_enum) {
             case RedBeforeNorthSouth: {
                 north_south_direction.set_red();
                 east_west_direction.set_red();
@@ -162,28 +166,28 @@ int main() {
                 if (pedestrian_request.east || pedestrian_request.west) {
                     target_state = NorthSouthPedestrian;
                 }
-                transition_after_duration(transition_time_us, RED_DURATION, state, target_state, request_before_transition);
+                transition_state.transition_after_duration(RED_DURATION, target_state);
                 break;
             }
             case NorthSouthPedestrian: {
                 north_south_direction.handle_pedestrian(pedestrian_request.east, pedestrian_request.west);
                 east_west_direction.set_red();
-                transition_after_duration(transition_time_us, PEDESTRIAN_GREEN_DURATION, state, TrafficState::NorthSouthGreen, request_before_transition);
+                transition_state.transition_after_duration(PEDESTRIAN_GREEN_DURATION, TrafficState::NorthSouthGreen);
                 break;
             }
             case NorthSouthGreen: {
                 pedestrian_request.east = false; // Find smarter way to do this
                 pedestrian_request.west = false; // Find smarter way to do this
-                bool flash_off = flashing_toggle_with_cutoff(transition_time_us, PEDESTRIAN_CUTOFF);
-                north_south_direction.handle_green(flash_off, request_before_transition.east, request_before_transition.west);
+                bool flash_off = flashing_toggle_with_cutoff(transition_state.transition_time_us, PEDESTRIAN_CUTOFF);
+                north_south_direction.handle_green(flash_off, transition_state.request_before.east, transition_state.request_before.west);
                 east_west_direction.set_red();
-                transition_after_duration(transition_time_us, GREEN_DURATION, state, TrafficState::NorthSouthYellow, request_before_transition);
+                transition_state.transition_after_duration(PEDESTRIAN_GREEN_DURATION, TrafficState::NorthSouthYellow);
                 break;
             }
             case NorthSouthYellow: {
                 north_south_direction.set_yellow();
                 east_west_direction.set_red();
-                transition_after_duration(transition_time_us, YELLOW_DURATION, state, TrafficState::RedBeforeEastWest, request_before_transition);
+                transition_state.transition_after_duration(YELLOW_DURATION, TrafficState::RedBeforeEastWest);
                 break;
             }
             case RedBeforeEastWest: {
@@ -194,32 +198,32 @@ int main() {
                 if (pedestrian_request.north || pedestrian_request.south) {
                     target_state = EastWestPedestrian;
                 }
-                transition_after_duration(transition_time_us, RED_DURATION, state, target_state, request_before_transition);
+                transition_state.transition_after_duration(RED_DURATION, target_state);
                 break;
             }
             case EastWestPedestrian: {
                 north_south_direction.set_red();
                 east_west_direction.handle_pedestrian(pedestrian_request.north, pedestrian_request.south);
-                transition_after_duration(transition_time_us, PEDESTRIAN_GREEN_DURATION, state, TrafficState::EastWestGreen, request_before_transition);
+                transition_state.transition_after_duration(PEDESTRIAN_GREEN_DURATION, TrafficState::EastWestGreen);
                 break;
             }
             case EastWestGreen: {
                 pedestrian_request.north = false; // Find smarter way to do this
                 pedestrian_request.south = false; // Find smarter way to do this
-                bool flash_off = flashing_toggle_with_cutoff(transition_time_us, PEDESTRIAN_CUTOFF);
+                bool flash_off = flashing_toggle_with_cutoff(transition_state.transition_time_us, PEDESTRIAN_CUTOFF);
                 north_south_direction.set_red();
-                east_west_direction.handle_green(flash_off, request_before_transition.north, request_before_transition.south);
-                transition_after_duration(transition_time_us, GREEN_DURATION, state, TrafficState::EastWestYellow, request_before_transition);
+                east_west_direction.handle_green(flash_off, transition_state.request_before.north, transition_state.request_before.south);
+                transition_state.transition_after_duration(GREEN_DURATION, TrafficState::EastWestYellow);
                 break;
             }
             case EastWestYellow: {
                 north_south_direction.set_red();
                 east_west_direction.set_yellow();
-                transition_after_duration(transition_time_us, YELLOW_DURATION, state, TrafficState::RedBeforeNorthSouth, request_before_transition);
+                transition_state.transition_after_duration(YELLOW_DURATION, TrafficState::RedBeforeNorthSouth);
                 break;
             }
             case Error: {
-                bool flash = flashing_toggle(transition_time_us);
+                bool flash = flashing_toggle(transition_state.transition_time_us);
                 if (flash) {
                     north_south_direction.set_red();
                     east_west_direction.set_red();
