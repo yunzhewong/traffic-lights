@@ -173,7 +173,13 @@ int main() {
                 break;
             }
             case Pedestrian: {
-                state_references.primary->handle_pedestrian(state_references.ped1_requested, state_references.ped2_requested);
+                state_references.primary->traffic.set_red();
+                if (*state_references.ped1_requested) { 
+                    state_references.primary->ped1.set_green();
+                }
+                if (*state_references.ped2_requested) { 
+                    state_references.primary->ped2.set_green();
+                }
                 state_references.secondary->set_red();
                 transition_state.transition_after_duration(PEDESTRIAN_GREEN_DURATION, TrafficState::Green);
 
@@ -185,7 +191,17 @@ int main() {
             }
             case Green: {
                 bool flash_off = flashing_toggle_with_cutoff(transition_state.transition_time_us, PEDESTRIAN_CUTOFF);
-                state_references.primary->handle_green(flash_off, transition_state.request_before.east, transition_state.request_before.west);
+                state_references.primary->traffic.set_green();
+                if (*state_references.ped1_requested && flash_off) { // Should not turn on mid transition
+                    state_references.primary->ped1.set_off();
+                } else {
+                    state_references.primary->ped1.set_red();
+                }
+                if (*state_references.ped2_requested && flash_off) { // Should not turn on mid transition
+                    state_references.primary->ped2.set_off();
+                } else {
+                    state_references.primary->ped2.set_red();
+                }
                 state_references.secondary->set_red();
                 transition_state.transition_after_duration(GREEN_DURATION, TrafficState::Yellow);
                 break;

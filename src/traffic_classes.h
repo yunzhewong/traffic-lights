@@ -41,10 +41,6 @@ class DirectionalLights {
       void set_yellow();
       void set_off();
 
-      void handle_pedestrian(bool ped1_request, bool ped2_request);
-      void handle_green(bool pedestrian_flash_off, bool stored_ped1_request,
-                        bool stored_ped2_request);
-
       TrafficLight traffic;
       PedestrianLight ped1;
       PedestrianLight ped2;
