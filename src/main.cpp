@@ -80,15 +80,6 @@ struct pedestrian_request_t {
 
 pedestrian_request_t pedestrian_request;
 
-pedestrian_request_t copy_pedestrian_request(pedestrian_request_t current) {
-    pedestrian_request_t output;
-    output.north = current.north;
-    output.east = current.east;
-    output.south = current.south;
-    output.west = current.west;
-    return output;
-}
-
 enum TrafficState {
     Red,
     Pedestrian,
@@ -111,9 +102,13 @@ void handle_pedestrian_request(uint gpio, uint32_t events) {
     }
 }
 
+struct request_history_t {
+    bool ped1;
+    bool ped2;
+};
+
 struct transition_state_t{
     TrafficState state_enum;
-    pedestrian_request_t request_before;
     uint64_t transition_time_us;
 
     void transition_after_duration(uint32_t duration_s, TrafficState target_state) {
@@ -122,7 +117,6 @@ struct transition_state_t{
         if (time_since_transition_s > duration_s) {
             this->state_enum = target_state;
             this->transition_time_us = current_time_us;
-            this->request_before = copy_pedestrian_request(pedestrian_request);
         }
     }
 };
@@ -154,8 +148,9 @@ int main() {
     north_south_direction.set_off();
     east_west_direction.set_off();
 
-    transition_state_t transition_state { TrafficState::Red, pedestrian_request, time_us_64()};
     state_references_t state_references { &north_south_direction, &east_west_direction, &pedestrian_request.east, &pedestrian_request.west};
+    transition_state_t transition_state { TrafficState::Red, time_us_64()};
+    request_history_t request_before = {*state_references.ped1_requested, *state_references.ped2_requested};
 
     while (1) {
         usb_with_watchdog_check_tasks();
@@ -164,7 +159,7 @@ int main() {
         switch (transition_state.state_enum) {
             case Red: {
                 TrafficState target_state = Green;
-                if (state_references.ped1_requested || state_references.ped2_requested) {
+                if (*state_references.ped1_requested || *state_references.ped2_requested) {
                     target_state = Pedestrian;
                 }
                 state_references.primary->set_red();
@@ -184,6 +179,7 @@ int main() {
                 transition_state.transition_after_duration(PEDESTRIAN_GREEN_DURATION, TrafficState::Green);
 
                 if (transition_state.state_enum == TrafficState::Green) {
+                    request_before = {*state_references.ped1_requested, *state_references.ped2_requested};
                     *state_references.ped1_requested = false;
                     *state_references.ped2_requested = false;
                 }
@@ -192,18 +188,26 @@ int main() {
             case Green: {
                 bool flash_off = flashing_toggle_with_cutoff(transition_state.transition_time_us, PEDESTRIAN_CUTOFF);
                 state_references.primary->traffic.set_green();
-                if (*state_references.ped1_requested && flash_off) { // Should not turn on mid transition
+
+                // If button is pressed when inside this state, it should be ignored but not cleared
+                // It should still be queued for the next time.
+                if (request_before.ped1 && flash_off) { 
                     state_references.primary->ped1.set_off();
                 } else {
                     state_references.primary->ped1.set_red();
                 }
-                if (*state_references.ped2_requested && flash_off) { // Should not turn on mid transition
+                if (request_before.ped2 && flash_off) { 
                     state_references.primary->ped2.set_off();
                 } else {
                     state_references.primary->ped2.set_red();
                 }
                 state_references.secondary->set_red();
                 transition_state.transition_after_duration(GREEN_DURATION, TrafficState::Yellow);
+
+                if (transition_state.state_enum == TrafficState::Yellow) {
+                    request_before.ped1 = false;
+                    request_before.ped2 = false;
+                }
                 break;
             }
             case Yellow: {
