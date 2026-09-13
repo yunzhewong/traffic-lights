@@ -20,7 +20,10 @@ class OutputGPIO {
         void set(bool value);
         void enable();
         void disable();
+        bool is_on();
+        bool is_off();
 
-    private:
+      private:
         uint pin;
+        bool value;
 };

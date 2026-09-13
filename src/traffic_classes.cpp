@@ -32,6 +32,19 @@ void TrafficLight::set_off() {
   this->yellow.disable();
   this->green.disable();
 }
+bool TrafficLight::is_red() {
+  return this->red.is_on() && this->yellow.is_off() && this->green.is_off();
+}
+bool TrafficLight::is_yellow() {
+  return this->red.is_off() && this->yellow.is_on() && this->green.is_off();
+}
+bool TrafficLight::is_green() {
+  return this->red.is_off() && this->yellow.is_off() && this->green.is_on();
+}
+bool TrafficLight::is_valid() { 
+  // We don't consider the off state to be valid, as it should only be reached when in an error state.
+  return is_red() || is_yellow() || is_green(); 
+}
 
 PedestrianLight::PedestrianLight(uint red_pin, uint green_pin)
     : red(red_pin), green(green_pin) {}
@@ -54,6 +67,12 @@ void PedestrianLight::set_green() {
 void PedestrianLight::set_off() {
   this->red.disable();
   this->green.disable();
+}
+bool PedestrianLight::is_red() {
+  return this->red.is_on() && this->green.is_off();
+}
+bool PedestrianLight::is_green() {
+  return this->red.is_off() && this->green.is_on();
 }
 
 PedestrianRequestButtons::PedestrianRequestButtons(uint north, uint east, uint south,

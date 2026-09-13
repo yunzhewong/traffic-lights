@@ -25,16 +25,18 @@ OutputGPIO::OutputGPIO(uint pin) {
     gpio_init(pin);
     gpio_set_dir(pin, GPIO_OUT);
     gpio_put(pin, false);
+    this->value = false;
 }
 
 void OutputGPIO::set(bool value) {
     gpio_put(this->pin, value);
+    this->value = value;
 }
 
 void OutputGPIO::enable() {
     gpio_put(this->pin, true);
 }
 
-void OutputGPIO::disable() {
-    gpio_put(this->pin, false);
-}
+void OutputGPIO::disable() { gpio_put(this->pin, false); }
+bool OutputGPIO::is_on() { return this->value; }
+bool OutputGPIO::is_off() { return !this->value; };
