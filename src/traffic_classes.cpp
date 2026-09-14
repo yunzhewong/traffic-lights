@@ -74,6 +74,11 @@ bool PedestrianLight::is_red() {
 bool PedestrianLight::is_green() {
   return this->red.is_off() && this->green.is_on();
 }
+bool PedestrianLight::is_off() {
+  return this->red.is_off() && this->green.is_off();
+}
+
+bool PedestrianLight::is_valid() { return is_red() || is_green() || is_off(); }
 
 PedestrianRequestButtons::PedestrianRequestButtons(uint north, uint east, uint south,
                                        uint west)
@@ -103,4 +108,22 @@ void DirectionalLights::set_off() {
   this->traffic.set_off();
   this->ped1.set_off();
   this->ped2.set_off();
+}
+bool DirectionalLights::is_valid() {
+  if (!traffic.is_valid() || !ped1.is_valid() || !ped2.is_valid()) {
+    return false;
+  }
+
+  // invalid states:
+  // 1: traffic yellow, either pedestrian is not red
+  if (traffic.is_yellow() && (!ped1.is_red() || !ped2.is_red())) {
+    return false;
+  }
+
+  // 2: traffic green, either pedestrians green
+  if (traffic.is_green() && (ped1.is_green() || ped2.is_green())) {
+    return false;
+  }
+
+  return true;
 }

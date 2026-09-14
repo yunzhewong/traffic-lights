@@ -34,6 +34,7 @@ class PedestrianLight {
       bool is_red();
       bool is_green();
       bool is_off();
+      bool is_valid();
 
     private:
         OutputGPIO red;
@@ -47,6 +48,7 @@ class DirectionalLights {
       void set_red();
       void set_yellow();
       void set_off();
+      bool is_valid();
 
       TrafficLight traffic;
       PedestrianLight ped1;

@@ -34,9 +34,9 @@ void OutputGPIO::set(bool value) {
 }
 
 void OutputGPIO::enable() {
-    gpio_put(this->pin, true);
+    this->set(true);
 }
 
-void OutputGPIO::disable() { gpio_put(this->pin, false); }
+void OutputGPIO::disable() { this->set(false); }
 bool OutputGPIO::is_on() { return this->value; }
 bool OutputGPIO::is_off() { return !this->value; };

@@ -128,6 +128,26 @@ struct state_references_t {
     volatile bool* ped2_requested; 
 };
 
+bool validate_lights(DirectionalLights& north_south, DirectionalLights& east_west) {
+    if (!north_south.is_valid() || !east_west.is_valid()) {
+        return false;
+    }
+
+    // Pedestrian lights should be red if the traffic light is green
+    if (north_south.traffic.is_green() && (!east_west.ped1.is_red() || !east_west.ped2.is_red())) {
+        return false;
+    }
+    if (east_west.traffic.is_green() && (!north_south.ped1.is_red() || !north_south.ped2.is_red())) {
+        return false;
+    }
+
+    // If one light is not red, the other one should be red.
+    if (!north_south.traffic.is_red() && !east_west.traffic.is_red()) {
+        return false;
+    }
+    return true;
+}
+
 int main() {
     uint8_t read;
     usb_with_watchdog_enable(usb_connection, read);
@@ -145,8 +165,8 @@ int main() {
         PedestrianLight(NORTH_PEDESTRIAN_RED, NORTH_PEDESTRIAN_GREEN),
         PedestrianLight(SOUTH_PEDESTRIAN_RED, SOUTH_PEDESTRIAN_GREEN)
     );
-    north_south_direction.set_off();
-    east_west_direction.set_off();
+    north_south_direction.set_red();
+    east_west_direction.set_red();
 
     state_references_t state_references { &north_south_direction, &east_west_direction, &pedestrian_request.east, &pedestrian_request.west};
     transition_state_t transition_state { TrafficState::Red, time_us_64()};
@@ -242,6 +262,11 @@ int main() {
                 break;
             }
         }
-        // To do some light combination validation after states are set
+
+        bool lights_valid = validate_lights(north_south_direction, east_west_direction);
+        
+        if (!lights_valid) {
+            transition_state.state_enum = TrafficState::Error;
+        }
     }
 }
