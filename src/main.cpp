@@ -65,11 +65,13 @@ void handle_pedestrian_request(uint gpio, uint32_t events) {
 // DELIMITER
 // LENGTH
 // TYPE
-// DATA
+// DATA 1
+// DATA 2
 // CRC
 
+#define READ_TIMEOUT_US 1e6
 #define DELIMITER 0xFF
-#define COMMS_SIZE 5
+#define COMMS_SIZE 6
 
 uint8_t crc8(const uint8_t* data, size_t len) {
     uint8_t crc = 0xFF;
@@ -113,14 +115,14 @@ int main() {
 
     while (1) {
         usb_with_watchdog_check_tasks();
-        usb_connection.read_with_reset(&read, 1);
         traffic_state.handle_transition();
 
         if (usb_connection.is_connected()) {
-            uint8_t read_amount = usb_connection.read(&read_buffer[read_count], COMMS_SIZE - read_count);
+            uint8_t read_amount = usb_connection.read_with_reset(&read_buffer[read_count], COMMS_SIZE - read_count);
+            read_count += read_amount;
             if (read_amount == 0) {
                 // clear buffer if no read after timeout
-                if (time_us_64() - last_read_time > 1e5) {
+                if (time_us_64() - last_read_time > READ_TIMEOUT_US) {
                     read_count = 0;
                 }
                 continue;
@@ -151,17 +153,23 @@ int main() {
                 continue;
             }
 
-            if (read_buffer[0] != 0xFF || read_buffer[1] != COMMS_SIZE || read_buffer[4] != crc8(read_buffer, 4)) {
+            debug_connection.print("%d-%d", read_count, read_amount);
+
+            if (read_buffer[0] != DELIMITER || read_buffer[1] != COMMS_SIZE || read_buffer[COMMS_SIZE - 1] != crc8(read_buffer, COMMS_SIZE - 1)) {
                 // did not match expected type
                 // clear as buffer is already full
                 read_count = 0;
                 continue;
             }
+            debug_connection.print("%d-%d", read_count, read_amount);
 
             uint8_t type = read_buffer[2];
-            uint8_t data = read_buffer[3];
+            uint8_t data1 = read_buffer[3];
+            uint8_t data2 = read_buffer[4];
 
             usb_connection.write(read_buffer, COMMS_SIZE);
+            usb_connection.flush();
+            read_count = 0;
         }
 
     }
