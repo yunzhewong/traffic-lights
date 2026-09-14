@@ -7,7 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
-add_executable(traffic_lights src/main.cpp src/usb.cpp src/usb_with_watchdog.cpp src/usb_descriptors.c src/gpio_classes.cpp src/traffic_classes.cpp )
+add_executable(traffic_lights src/main.cpp src/usb.cpp src/usb_with_watchdog.cpp src/usb_descriptors.c src/gpio_classes.cpp src/traffic_classes.cpp
+    src/transition.cpp )
 target_link_libraries(traffic_lights pico_stdlib)
 pico_add_extra_outputs(traffic_lights)
 

@@ -14,6 +14,7 @@ class USBConnection {
     bool is_connected();
     uint32_t readable_bytes();
     uint32_t read(uint8_t* buffer, uint32_t max_size);
+    uint32_t read_with_reset(uint8_t* buffer, uint32_t max_size);
     void print(const char* format, ...);
     void vprint(const char* format, va_list args);
     uint32_t write(uint8_t* buffer, uint32_t size);

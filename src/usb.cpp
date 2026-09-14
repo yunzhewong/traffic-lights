@@ -38,15 +38,17 @@ uint32_t USBConnection::readable_bytes() {
     return tud_cdc_n_available(m_device_number);
 }
 
-// todo: remove when used for operations
 uint32_t USBConnection::read(uint8_t* buffer, uint32_t max_size) {
-    uint32_t count = tud_cdc_n_read(m_device_number, buffer, max_size);
+    return tud_cdc_n_read(m_device_number, buffer, max_size);
+}
+
+uint32_t USBConnection::read_with_reset(uint8_t* buffer, uint32_t max_size) {
+    uint32_t count = this->read(buffer, max_size);
     if (count == 1 && (char)buffer[0] == 'r') {
         reset_usb_boot(0, 0);
         return 1;
     }
     return count;
-    // return tud_cdc_n_read(m_device_number, buffer, max_size);
 }
 
 uint32_t USBConnection::write(uint8_t* buffer, uint32_t size) {

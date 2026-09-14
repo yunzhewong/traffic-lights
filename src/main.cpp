@@ -6,6 +6,7 @@
 #include "usb.h"
 #include "usb_with_watchdog.h"
 #include "traffic_classes.h"
+#include "transition.h"
 
 // GPIO Settings
 // Pedestrian Requests
@@ -42,52 +43,11 @@
 #define WEST_PEDESTRIAN_RED 18
 #define WEST_PEDESTRIAN_GREEN 17
 
-// Duration Constants
-#define RED_DURATION 2
-#define YELLOW_DURATION 2
-#define GREEN_DURATION 5
-#define PEDESTRIAN_GREEN_DURATION 2
-#define PEDESTRIAN_CUTOFF 3
-#define FLASH_PERIOD 0.5
 
 USBConnection usb_connection = USBConnection(0);
 USBConnection debug_connection = USBConnection(1);
 
-double calc_time_since_transition_s(uint64_t current_time_us, uint64_t transition_time_us) {
-    return (double)(current_time_us - transition_time_us) / 1e6;
-}
-
-bool flashing_toggle(uint64_t transition_time_us) {
-    double time_since_transition_s = calc_time_since_transition_s(time_us_64(), transition_time_us);
-    return ((int)(time_since_transition_s / FLASH_PERIOD) % 2 == 1);
-}
-
-bool flashing_toggle_with_cutoff(uint64_t transition_time_us, double cutoff_s) {
-    double time_since_transition_s = calc_time_since_transition_s(time_us_64(), transition_time_us);
-    if (time_since_transition_s > cutoff_s) {
-        return false;
-    }
-    return flashing_toggle(transition_time_us);
-}
-
-
-struct pedestrian_request_t {
-    volatile bool north = false;
-    volatile bool east = false;
-    volatile bool south = false;
-    volatile bool west = false;
-};
-
 pedestrian_request_t pedestrian_request;
-
-enum TrafficState {
-    Red,
-    Pedestrian,
-    Green,
-    Yellow,
-    Error
-};
-
 void handle_pedestrian_request(uint gpio, uint32_t events) {
     if (events & GPIO_IRQ_EDGE_RISE) {
         if (gpio == NORTH_PEDESTRIAN_REQUEST) {
@@ -102,52 +62,6 @@ void handle_pedestrian_request(uint gpio, uint32_t events) {
     }
 }
 
-struct request_history_t {
-    bool ped1;
-    bool ped2;
-};
-
-struct transition_state_t{
-    TrafficState state_enum;
-    uint64_t transition_time_us;
-
-    void transition_after_duration(uint32_t duration_s, TrafficState target_state) {
-        uint64_t current_time_us = time_us_64();
-        double time_since_transition_s = calc_time_since_transition_s(current_time_us, transition_time_us);
-        if (time_since_transition_s > duration_s) {
-            this->state_enum = target_state;
-            this->transition_time_us = current_time_us;
-        }
-    }
-};
-
-struct state_references_t {
-    DirectionalLights* primary; 
-    DirectionalLights* secondary; 
-    volatile bool* ped1_requested; 
-    volatile bool* ped2_requested; 
-};
-
-bool validate_lights(DirectionalLights& north_south, DirectionalLights& east_west) {
-    if (!north_south.is_valid() || !east_west.is_valid()) {
-        return false;
-    }
-
-    // Pedestrian lights should be red if the traffic light is green
-    if (north_south.traffic.is_green() && (!east_west.ped1.is_red() || !east_west.ped2.is_red())) {
-        return false;
-    }
-    if (east_west.traffic.is_green() && (!north_south.ped1.is_red() || !north_south.ped2.is_red())) {
-        return false;
-    }
-
-    // If one light is not red, the other one should be red.
-    if (!north_south.traffic.is_red() && !east_west.traffic.is_red()) {
-        return false;
-    }
-    return true;
-}
-
 int main() {
     uint8_t read;
     usb_with_watchdog_enable(usb_connection, read);
@@ -160,113 +74,19 @@ int main() {
         PedestrianLight(EAST_PEDESTRIAN_RED, EAST_PEDESTRIAN_GREEN),
         PedestrianLight(WEST_PEDESTRIAN_RED, WEST_PEDESTRIAN_GREEN)
     );
+    north_south_direction.set_red();
     DirectionalLights east_west_direction = DirectionalLights(
         TrafficLight(EAST_WEST_RED, EAST_WEST_YELLOW, EAST_WEST_GREEN), 
         PedestrianLight(NORTH_PEDESTRIAN_RED, NORTH_PEDESTRIAN_GREEN),
         PedestrianLight(SOUTH_PEDESTRIAN_RED, SOUTH_PEDESTRIAN_GREEN)
     );
-    north_south_direction.set_red();
     east_west_direction.set_red();
 
-    state_references_t state_references { &north_south_direction, &east_west_direction, &pedestrian_request.east, &pedestrian_request.west};
-    transition_state_t transition_state { TrafficState::Red, time_us_64()};
-    request_history_t request_before = {*state_references.ped1_requested, *state_references.ped2_requested};
+    traffic_state_t traffic_state = traffic_state_t { &north_south_direction, &east_west_direction, &pedestrian_request };
 
     while (1) {
         usb_with_watchdog_check_tasks();
-        usb_connection.read(&read, 1);
-
-        switch (transition_state.state_enum) {
-            case Red: {
-                TrafficState target_state = Green;
-                if (*state_references.ped1_requested || *state_references.ped2_requested) {
-                    target_state = Pedestrian;
-                }
-                state_references.primary->set_red();
-                state_references.secondary->set_red();
-                transition_state.transition_after_duration(RED_DURATION, target_state);
-                break;
-            }
-            case Pedestrian: {
-                state_references.primary->traffic.set_red();
-                if (*state_references.ped1_requested) { 
-                    state_references.primary->ped1.set_green();
-                }
-                if (*state_references.ped2_requested) { 
-                    state_references.primary->ped2.set_green();
-                }
-                state_references.secondary->set_red();
-                transition_state.transition_after_duration(PEDESTRIAN_GREEN_DURATION, TrafficState::Green);
-
-                if (transition_state.state_enum == TrafficState::Green) {
-                    request_before = {*state_references.ped1_requested, *state_references.ped2_requested};
-                    *state_references.ped1_requested = false;
-                    *state_references.ped2_requested = false;
-                }
-                break;
-            }
-            case Green: {
-                bool flash_off = flashing_toggle_with_cutoff(transition_state.transition_time_us, PEDESTRIAN_CUTOFF);
-                state_references.primary->traffic.set_green();
-
-                // If button is pressed when inside this state, it should be ignored but not cleared
-                // It should still be queued for the next time.
-                if (request_before.ped1 && flash_off) { 
-                    state_references.primary->ped1.set_off();
-                } else {
-                    state_references.primary->ped1.set_red();
-                }
-                if (request_before.ped2 && flash_off) { 
-                    state_references.primary->ped2.set_off();
-                } else {
-                    state_references.primary->ped2.set_red();
-                }
-                state_references.secondary->set_red();
-                transition_state.transition_after_duration(GREEN_DURATION, TrafficState::Yellow);
-
-                if (transition_state.state_enum == TrafficState::Yellow) {
-                    request_before.ped1 = false;
-                    request_before.ped2 = false;
-                }
-                break;
-            }
-            case Yellow: {
-                state_references.primary->set_yellow();
-                state_references.secondary->set_red();
-                transition_state.transition_after_duration(YELLOW_DURATION, TrafficState::Red);
-
-                if (transition_state.state_enum == TrafficState::Red) {
-                    if (state_references.primary == &north_south_direction) {
-                        state_references.primary = &east_west_direction;
-                        state_references.secondary = &north_south_direction;
-                        state_references.ped1_requested = &pedestrian_request.north;
-                        state_references.ped2_requested = &pedestrian_request.south;
-                    } else {
-                        state_references.primary = &north_south_direction;
-                        state_references.secondary = &east_west_direction;
-                        state_references.ped1_requested = &pedestrian_request.east;
-                        state_references.ped2_requested = &pedestrian_request.west;
-                    }
-                }
-                break;
-            }
-            case Error: {
-                bool flash = flashing_toggle(transition_state.transition_time_us);
-                if (flash) {
-                    north_south_direction.set_red();
-                    east_west_direction.set_red();
-                } else {
-                    north_south_direction.set_off();
-                    east_west_direction.set_off();
-                }
-                break;
-            }
-        }
-
-        bool lights_valid = validate_lights(north_south_direction, east_west_direction);
-        
-        if (!lights_valid) {
-            transition_state.state_enum = TrafficState::Error;
-        }
+        usb_connection.read_with_reset(&read, 1);
+        traffic_state.handle_transition();
     }
 }
