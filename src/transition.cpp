@@ -52,6 +52,21 @@ void transition_state_t::transition_after_duration(uint8_t duration_s,
     this->transition_time_us = current_time_us;
   }
 }
+traffic_state_t::traffic_state_t(DirectionalLights *north_south_direction,
+                                 DirectionalLights *east_west_direction,
+                                 pedestrian_request_t *pedestrian_request)
+    : north_south_direction(north_south_direction),
+      east_west_direction(east_west_direction),
+      pedestrian_request(pedestrian_request),
+      state_references({north_south_direction, east_west_direction,
+                        &pedestrian_request->east, &pedestrian_request->west}),
+      transition_state({TrafficState::Red, time_us_64()}),
+      request_before(
+          {*state_references.ped1_requested, *state_references.ped2_requested}),
+      green_durations({GREEN_DURATION, GREEN_DURATION}) {
+  // because north south is the primary
+  this->green_duration = &this->green_durations.north_south;
+}
 void traffic_state_t::handle_transition() {
   switch (transition_state.state_enum) {
   case Red: {

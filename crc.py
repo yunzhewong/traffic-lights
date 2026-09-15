@@ -18,7 +18,13 @@ def crcify(data: bytes):
 if __name__ == "__main__":
     device = serial.Serial(port="/dev/ttyACM0", timeout=0.01)
 
-    write_data = bytes([0xFF, 0x06, 0x01, 0x10, 0x01])
+    write_data = bytes([0xFF, 0x06, 0x00, 0x00, 0x00])
+    message = crcify(bytes(write_data))
+    device.write(message)
+    response = device.read(1024)
+    print(response.hex())
+
+    write_data = bytes([0xFF, 0x06, 0x01, 0x01, 0x10])
     message = crcify(bytes(write_data))
     device.write(message)
     response = device.read(1024)
