@@ -102,7 +102,7 @@ void traffic_state_t::handle_transition() {
       state_references.primary->ped2.set_red();
     }
     state_references.secondary->set_red();
-    transition_state.transition_after_duration(GREEN_DURATION,
+    transition_state.transition_after_duration(*this->green_duration,
                                                TrafficState::Yellow);
 
     if (transition_state.state_enum == TrafficState::Yellow) {
@@ -123,11 +123,13 @@ void traffic_state_t::handle_transition() {
         state_references.secondary = this->north_south_direction;
         state_references.ped1_requested = &this->pedestrian_request->north;
         state_references.ped2_requested = &this->pedestrian_request->south;
+        this->green_duration = &green_durations.east_west;
       } else {
         state_references.primary = this->north_south_direction;
         state_references.secondary = this->east_west_direction;
         state_references.ped1_requested = &this->pedestrian_request->east;
         state_references.ped2_requested = &this->pedestrian_request->west;
+        this->green_duration = &green_durations.north_south;
       }
     }
     break;
@@ -152,6 +154,12 @@ void traffic_state_t::handle_transition() {
     transition_state.state_enum = TrafficState::Error;
   }
 }
+void traffic_state_t::change_green_durations(uint8_t north_south,
+                                             uint8_t east_west) {
+  this->green_durations.north_south = north_south;
+  this->green_durations.east_west = east_west;
+}
+
 packed_state_t traffic_state_t::pack_state() {
   uint8_t traffic_byte = this->pack_traffic();
   uint8_t pedestrian_byte = this->pack_pedestrian();

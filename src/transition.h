@@ -80,19 +80,28 @@ struct packed_state_t {
     uint8_t transition_ticks_byte;
 };
 
+struct green_durations_t {
+    uint8_t north_south;
+    uint8_t east_west;
+};
+
 struct traffic_state_t {
-    traffic_state_t(DirectionalLights* north_south_direction, DirectionalLights* east_west_direction, pedestrian_request_t* pedestrian_request): north_south_direction(north_south_direction), east_west_direction(east_west_direction), pedestrian_request(pedestrian_request), state_references({north_south_direction, east_west_direction, &pedestrian_request->east, &pedestrian_request->west}), transition_state({ TrafficState::Red, time_us_64()}), request_before({*state_references.ped1_requested, *state_references.ped2_requested}) {
+    traffic_state_t(DirectionalLights* north_south_direction, DirectionalLights* east_west_direction, pedestrian_request_t* pedestrian_request): north_south_direction(north_south_direction), east_west_direction(east_west_direction), pedestrian_request(pedestrian_request), state_references({north_south_direction, east_west_direction, &pedestrian_request->east, &pedestrian_request->west}), transition_state({ TrafficState::Red, time_us_64()}), request_before({*state_references.ped1_requested, *state_references.ped2_requested}), green_durations({GREEN_DURATION, GREEN_DURATION}) {
 
     }
 
     DirectionalLights *north_south_direction;
     DirectionalLights *east_west_direction;
     pedestrian_request_t* pedestrian_request;
+    uint8_t* green_duration;
+    green_durations_t green_durations;
     state_references_t state_references; 
     transition_state_t transition_state;
     request_history_t request_before;
 
+
     void handle_transition();
+    void change_green_durations(uint8_t north_south, uint8_t east_west);
     packed_state_t pack_state();
 
   private:
