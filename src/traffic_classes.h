@@ -16,6 +16,7 @@ class TrafficLight {
       bool is_yellow();
       bool is_green();
       bool is_valid();
+      uint8_t get_byte_state();
 
     private:
       OutputGPIO red;
@@ -35,6 +36,7 @@ class PedestrianLight {
       bool is_green();
       bool is_off();
       bool is_valid();
+      uint8_t get_byte_state();
 
     private:
         OutputGPIO red;

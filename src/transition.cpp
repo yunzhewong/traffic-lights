@@ -40,11 +40,13 @@ bool validate_lights(DirectionalLights &north_south,
   return true;
 }
 
-void transition_state_t::transition_after_duration(uint32_t duration_s,
+void transition_state_t::transition_after_duration(uint8_t duration_s,
                                                    TrafficState target_state) {
   uint64_t current_time_us = time_us_64();
   double time_since_transition_s =
       calc_time_since_transition_s(current_time_us, transition_time_us);
+  this->current_ticks = (uint8_t)(time_since_transition_s / TICK_PERIOD);
+  this->transition_ticks = (uint8_t)((double)duration_s / TICK_PERIOD);
   if (time_since_transition_s > duration_s) {
     this->state_enum = target_state;
     this->transition_time_us = current_time_us;
@@ -150,3 +152,42 @@ void traffic_state_t::handle_transition() {
     transition_state.state_enum = TrafficState::Error;
   }
 }
+packed_state_t traffic_state_t::pack_state() {
+  uint8_t traffic_byte = this->pack_traffic();
+  uint8_t pedestrian_byte = this->pack_pedestrian();
+  uint8_t request_byte = this->pack_request();
+  return packed_state_t{traffic_byte, pedestrian_byte, request_byte,
+                        this->transition_state.current_ticks,
+                        this->transition_state.transition_ticks};
+}
+uint8_t traffic_state_t::pack_traffic() {
+  uint8_t north_south_contribution =
+      north_south_direction->traffic.get_byte_state() << 4;
+  uint8_t east_west_contribution =
+      east_west_direction->traffic.get_byte_state();
+  return north_south_contribution + east_west_contribution;
+}
+uint8_t traffic_state_t::pack_pedestrian() {
+  uint8_t north_contribution = east_west_direction->ped1.get_byte_state() << 6;
+  uint8_t east_contribution = north_south_direction->ped1.get_byte_state() << 4;
+  uint8_t south_contribution = east_west_direction->ped2.get_byte_state() << 2;
+  uint8_t west_contribution = north_south_direction->ped2.get_byte_state();
+  return north_contribution + east_contribution + south_contribution +
+         west_contribution;
+}
+uint8_t traffic_state_t::pack_request() {
+  uint8_t output = 0;
+  if (pedestrian_request->north) {
+    output += 1 << 3;
+  }
+  if (pedestrian_request->east) {
+    output += 1 << 2;
+  }
+  if (pedestrian_request->south) {
+    output += 1 << 1;
+  }
+  if (pedestrian_request->west) {
+    output += 1 << 0;
+  }
+  return output;
+};

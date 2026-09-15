@@ -87,7 +87,6 @@ uint8_t crc8(const uint8_t* data, size_t len) {
     return crc;
 }
 
-
 int main() {
     uint8_t read;
     usb_with_watchdog_enable(usb_connection, read);
@@ -167,7 +166,17 @@ int main() {
             uint8_t data1 = read_buffer[3];
             uint8_t data2 = read_buffer[4];
 
-            usb_connection.write(read_buffer, COMMS_SIZE);
+            if (type == 0x01) {
+                uint8_t data[6] = { DELIMITER, 0x06, 0x01, data1, data2, 0x00};
+                data[5] = crc8(data, 5);
+                usb_connection.write(data, 6);
+            } else {
+                packed_state_t packed_state = traffic_state.pack_state();
+                uint8_t data[9] = { DELIMITER, 0x07, 0x00,packed_state.traffic_byte, packed_state.pedestrian_byte, packed_state.request_byte, packed_state.current_ticks_byte,packed_state.transition_ticks_byte, 0x00 };
+                data[8] = crc8(data, 8); 
+                usb_connection.write(data, 9);
+            }
+
             usb_connection.flush();
             read_count = 0;
         }

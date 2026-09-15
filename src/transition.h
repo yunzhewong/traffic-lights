@@ -12,6 +12,7 @@
 #define PEDESTRIAN_GREEN_DURATION 2
 #define PEDESTRIAN_CUTOFF 3
 #define FLASH_PERIOD 0.5
+#define TICK_PERIOD 0.1
 
 
 struct pedestrian_request_t {
@@ -44,8 +45,11 @@ bool flashing_toggle_with_cutoff(uint64_t transition_time_us, double cutoff_s);
 struct transition_state_t{
     TrafficState state_enum;
     uint64_t transition_time_us;
+    
+    uint8_t current_ticks;
+    uint8_t transition_ticks;
 
-    void transition_after_duration(uint32_t duration_s,
+    void transition_after_duration(uint8_t duration_s,
                                    TrafficState target_state);
 };
 
@@ -58,6 +62,23 @@ struct state_references_t {
 
 bool validate_lights(DirectionalLights &north_south,
                      DirectionalLights &east_west);
+
+// NS Traffic (RYG)
+// EW Traffic (RYG) ... 6 (in 1 byte)
+// E Ped (RG)
+// W Ped (RG) 
+// N Ped (RG)
+// S Ped (RG) ... 8 (in 1 byte)
+// Pedestrian Request ... 4 (in 1 byte)
+// Current Ticks ... 8 (in 1 byte)
+// Transition Ticks ... 8 (in 1 byte)
+struct packed_state_t {
+    uint8_t traffic_byte;
+    uint8_t pedestrian_byte;
+    uint8_t request_byte;
+    uint8_t current_ticks_byte;
+    uint8_t transition_ticks_byte;
+};
 
 struct traffic_state_t {
     traffic_state_t(DirectionalLights* north_south_direction, DirectionalLights* east_west_direction, pedestrian_request_t* pedestrian_request): north_south_direction(north_south_direction), east_west_direction(east_west_direction), pedestrian_request(pedestrian_request), state_references({north_south_direction, east_west_direction, &pedestrian_request->east, &pedestrian_request->west}), transition_state({ TrafficState::Red, time_us_64()}), request_before({*state_references.ped1_requested, *state_references.ped2_requested}) {
@@ -72,4 +93,10 @@ struct traffic_state_t {
     request_history_t request_before;
 
     void handle_transition();
+    packed_state_t pack_state();
+
+  private:
+    uint8_t pack_traffic();
+    uint8_t pack_pedestrian();
+    uint8_t pack_request();
 };

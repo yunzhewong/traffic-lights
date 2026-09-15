@@ -43,7 +43,20 @@ bool TrafficLight::is_green() {
 }
 bool TrafficLight::is_valid() { 
   // We don't consider the off state to be valid, as it should only be reached when in an error state.
-  return is_red() || is_yellow() || is_green(); 
+  return is_red() || is_yellow() || is_green();
+}
+uint8_t TrafficLight::get_byte_state() {
+  uint8_t output = 0;
+  if (red.is_on()) {
+    output += 1 << 2;
+  }
+  if (yellow.is_on()) {
+    output += 1 << 1;
+  }
+  if (green.is_on()) {
+    output += 1 << 0;
+  }
+  return output;
 }
 
 PedestrianLight::PedestrianLight(uint red_pin, uint green_pin)
@@ -79,6 +92,16 @@ bool PedestrianLight::is_off() {
 }
 
 bool PedestrianLight::is_valid() { return is_red() || is_green() || is_off(); }
+uint8_t PedestrianLight::get_byte_state() {
+  uint8_t output = 0;
+  if (this->red.is_on()) {
+    output += 1 << 1;
+  }
+  if (this->green.is_on()) {
+    output += 1 << 0;
+  }
+  return output;
+}
 
 PedestrianRequestButtons::PedestrianRequestButtons(uint north, uint east, uint south,
                                        uint west)
