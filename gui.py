@@ -1,18 +1,21 @@
+import queue
 import threading
 import time
 import tkinter as tk
 from tkinter import ttk
+from typing import Callable
 
 import serial
 from crc import read_state, write_times
 
 
 class RequestedDuration():
-    def __init__(self, parent: ttk.LabelFrame, row: int, name: str):
+    def __init__(self, parent: ttk.LabelFrame, row: int, name: str, handle_change: Callable[[], None]):
         ttk.Label(parent, text=name, width=12).grid(
             row=row, column=0, padx=10, pady=10, sticky="e"
         )
-        self.value = tk.IntVar(value=1)
+        self.last_value = 1
+        self.value = tk.IntVar(value=self.last_value)
         self.setpoint = ttk.Spinbox(
             parent, from_=1, to=20, increment=1, textvariable=self.value, width=8
         )
@@ -21,13 +24,28 @@ class RequestedDuration():
 
         self.readback = ttk.Label(parent, text=f"{1} s", width=8, style="Readback.TLabel")
         self.readback.grid(row=row, column=2, padx=10, pady=10, sticky="w")
+        self.handle_change = handle_change
 
     def _confirm_value(self):
         try:
-            value = self.value.get()
+            value = int(self.value.get())
             self.readback.config(text=f"{value} s")
+            self.last_value = value
+            self.handle_change()
         except tk.TclError:
             pass
+
+    def get_value(self):
+        return self.last_value
+
+class DurationRequests():
+    def __init__(self, parent: tk.LabelFrame, handle_times: Callable[[tuple[int, int]], None]):
+        self.north_south = RequestedDuration(parent=parent, row=0, name="North - South", handle_change=self.handle_change)
+        self.east_west = RequestedDuration(parent=parent, row=1, name="East - West", handle_change=self.handle_change)
+        self.handle_times = handle_times
+
+    def handle_change(self):
+        self.handle_times((self.north_south.get_value(), self.east_west.get_value()))
 
 class ReadbackDuration():
     def __init__(self, parent: ttk.LabelFrame, row: int, name: str):
@@ -37,6 +55,9 @@ class ReadbackDuration():
         self.value = tk.IntVar(value=1)
         self.readback = ttk.Label(parent, text=f"{1} s", width=8, style="Readback.TLabel")
         self.readback.grid(row=row, column=1, padx=10, pady=10, sticky="w")
+
+    def change_value(self, value: int):
+        self.readback.config(text=f"{value} s")
 
 class CountdownTimer():
     def __init__(self, parent: ttk.LabelFrame):
@@ -73,7 +94,7 @@ DIM_BLUE = "#4A6FA5"
 BRIGHT_RED    = "#FF0000"
 BRIGHT_YELLOW = "#FFFF00"
 BRIGHT_GREEN  = "#00FF00"
-BRIGHT_BLUE   = "#0000FF"
+BRIGHT_BLUE   = "#00FFFF"
 
 class TrafficLight():
     def __init__(self, canvas: tk.Canvas, cx: int, cy: int):
@@ -165,7 +186,7 @@ class Lights():
 if __name__ == "__main__":
     # 1. Create the main window
     root = tk.Tk()
-    root.title("My First Tkinter App")
+    root.title("Traffic Light Control GUI")
     root.geometry("775x900")  # width x height
     root.columnconfigure(0, weight=1, minsize=300)
     root.columnconfigure(1, weight=1, minsize=200)
@@ -178,13 +199,14 @@ if __name__ == "__main__":
     # 2. Create some widgets
     requested_duration_group = ttk.LabelFrame(root, text="Requested Durations")
     requested_duration_group.grid(row=0, column=0, padx=15, pady=15, sticky="nsew")
-    RequestedDuration(parent=requested_duration_group, row=0, name="North - South")
-    RequestedDuration(parent=requested_duration_group, row=1, name="East - West")
+
+    request_queue = queue.Queue[tuple[int, int]]()
+    DurationRequests(parent=requested_duration_group, handle_times=request_queue.put)
 
     duration_readback_group = ttk.LabelFrame(root, text="Duration Readbacks")
     duration_readback_group.grid(row=0, column=1, padx=15, pady=15, sticky="nsew")
-    ReadbackDuration(parent=duration_readback_group, row=0, name="North - South")
-    ReadbackDuration(parent=duration_readback_group, row=1, name="East - West")
+    north_south_readback = ReadbackDuration(parent=duration_readback_group, row=0, name="North - South")
+    east_west_readback = ReadbackDuration(parent=duration_readback_group, row=1, name="East - West")
 
     transition_countdown_group = ttk.LabelFrame(root, text="Transition")
     transition_countdown_group.grid(row=0, column=2, padx=15, pady=15, sticky="nsew")
@@ -201,9 +223,18 @@ if __name__ == "__main__":
     def toggle():
         try:
             device = serial.Serial(port="/dev/ttyACM0", timeout=0.01)
+            write_times(device, 1, 1)
+            north_south_readback.change_value(1)
+            east_west_readback.change_value(1)
             while not event.is_set():
-                time_since_transition, transition_time = lights.handle_state(read_state(device))
-                countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
+                if request_queue.empty():
+                    time_since_transition, transition_time = lights.handle_state(read_state(device))
+                    countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
+                else:
+                    (north_south, east_west) = request_queue.get()
+                    write_times(device, north_south, east_west)
+                    north_south_readback.change_value(north_south)
+                    east_west_readback.change_value(east_west)
                 time.sleep(0.01)
         except Exception as e:
             print(e)
