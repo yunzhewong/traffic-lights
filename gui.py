@@ -40,13 +40,16 @@ class ReadbackDuration():
 
 class CountdownTimer():
     def __init__(self, parent: ttk.LabelFrame):
-        label = ttk.Label(parent, text="5.0/10.0", style="Countdown.TLabel")
-        label.grid(
+        self.label = ttk.Label(parent, text="0.0/5.0", style="Countdown.TLabel")
+        self.label.grid(
             row=0, column=2,
             columnspan=2, rowspan=2, 
             padx=15, pady=15, 
             sticky="nsew"
         )
+
+    def change_value(self, time_since_transition: float, transition_time: float):
+        self.label.config(text=f"{time_since_transition:.1f}/{transition_time:.1f}")
 
 class Circle():
     def __init__(self, canvas: tk.Canvas, cx: int, cy: int, r: int, fill: str):
@@ -117,7 +120,7 @@ class PedRequest():
     def handle_state(self, state: int):
         self.first.handle_state(state)
         self.second.handle_state(state)
-        
+
 class Lights():
     def __init__(self, canvas: tk.Canvas):
         self.north = TrafficLight(canvas=canvas, cx=350, cy=100)
@@ -134,10 +137,12 @@ class Lights():
         self.west_req = PedRequest(first=ReqLight(canvas=canvas, cx=100, cy=200), second=ReqLight(canvas=canvas, cx=100, cy=500))
 
     def handle_state(self, state: bytes):
-        print(state.hex())
         self.handle_traffic(state[0])
         self.handle_pedestrian(state[1])
         self.handle_request(state[2])
+        time_since_transition = state[3] / 10
+        transition_cutoff = state[4] / 10
+        return time_since_transition, transition_cutoff
 
     def handle_traffic(self, value: int):
         self.north.handle_state(value >> 4)
@@ -183,7 +188,7 @@ if __name__ == "__main__":
 
     transition_countdown_group = ttk.LabelFrame(root, text="Transition")
     transition_countdown_group.grid(row=0, column=2, padx=15, pady=15, sticky="nsew")
-    CountdownTimer(transition_countdown_group)
+    countdown_timer = CountdownTimer(transition_countdown_group)
 
     traffic_group = ttk.LabelFrame(root, text="Traffic State")
     traffic_group.grid(row=1, column=0, columnspan=3, padx=15, sticky="nsew")
@@ -197,7 +202,8 @@ if __name__ == "__main__":
         try:
             device = serial.Serial(port="/dev/ttyACM0", timeout=0.01)
             while not event.is_set():
-                lights.handle_state(read_state(device))
+                time_since_transition, transition_time = lights.handle_state(read_state(device))
+                countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
                 time.sleep(0.01)
         except Exception as e:
             print(e)
