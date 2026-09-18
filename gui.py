@@ -7,7 +7,7 @@ from tkinter import ttk
 from typing import Callable, Generic, TypeVar, final
 
 import serial
-from crc import read_state, write_times
+from crc import USBCommunications, read_state, write_times
 
 
 class RequestedDuration():
@@ -72,6 +72,27 @@ class CountdownTimer():
 
     def change_value(self, time_since_transition: float, transition_time: float):
         self.label.config(text=f"{time_since_transition:.1f}/{transition_time:.1f}")
+
+class Header():
+    def __init__(self, parent: tk.Tk, row: int):
+        requested_duration_group = ttk.LabelFrame(parent, text="Requested Durations")
+        requested_duration_group.grid(row=row, column=0, padx=15, pady=15, sticky="nsew")
+    
+        self.request_queue = queue.Queue[tuple[int, int]]()
+        self.duration_requests = DurationRequests(parent=requested_duration_group, handle_times=self.request_queue.put)
+    
+        duration_readback_group = ttk.LabelFrame(parent, text="Duration Readbacks")
+        duration_readback_group.grid(row=row, column=1, padx=15, pady=15, sticky="nsew")
+        self.north_south_readback = ReadbackDuration(parent=duration_readback_group, row=0, name="North - South")
+        self.east_west_readback = ReadbackDuration(parent=duration_readback_group, row=1, name="East - West")
+    
+        transition_countdown_group = ttk.LabelFrame(parent, text="Transition")
+        transition_countdown_group.grid(row=row, column=2, padx=15, pady=15, sticky="nsew")
+        self.countdown_timer = CountdownTimer(transition_countdown_group)
+
+    def change_readbacks(self, north_south: int, east_west: int):
+        self.north_south_readback.change_value(north_south)
+        self.east_west_readback.change_value(east_west)
 
 class Circle():
     def __init__(self, canvas: tk.Canvas, cx: int, cy: int, r: int, fill: str):
@@ -193,23 +214,6 @@ class TrafficCanvas():
     def handle_state(self, state: bytes):
         return self.lights.handle_state(state)
 
-class Header():
-    def __init__(self, parent: tk.Tk, row: int):
-        requested_duration_group = ttk.LabelFrame(parent, text="Requested Durations")
-        requested_duration_group.grid(row=row, column=0, padx=15, pady=15, sticky="nsew")
-    
-        request_queue = queue.Queue[tuple[int, int]]()
-        self.duration_requests = DurationRequests(parent=requested_duration_group, handle_times=request_queue.put)
-    
-        duration_readback_group = ttk.LabelFrame(parent, text="Duration Readbacks")
-        duration_readback_group.grid(row=row, column=1, padx=15, pady=15, sticky="nsew")
-        self.north_south_readback = ReadbackDuration(parent=duration_readback_group, row=0, name="North - South")
-        self.east_west_readback = ReadbackDuration(parent=duration_readback_group, row=1, name="East - West")
-    
-        transition_countdown_group = ttk.LabelFrame(parent, text="Transition")
-        transition_countdown_group.grid(row=row, column=2, padx=15, pady=15, sticky="nsew")
-        self.countdown_timer = CountdownTimer(transition_countdown_group)
-
 if __name__ == "__main__":
     # 1. Create the main window
     root = tk.Tk()
@@ -227,23 +231,24 @@ if __name__ == "__main__":
 
     event = threading.Event()
     def toggle():
-        try:
-            device = serial.Serial(port="/dev/ttyACM0", timeout=0.01)
-            write_times(device, 1, 1)
-            north_south_readback.change_value(1)
-            east_west_readback.change_value(1)
-            while not event.is_set():
-                if request_queue.empty():
-                    time_since_transition, transition_time = traffic_canvas.handle_state(read_state(device))
-                    countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
-                else:
-                    (north_south, east_west) = request_queue.get()
-                    write_times(device, north_south, east_west)
-                    north_south_readback.change_value(north_south)
-                    east_west_readback.change_value(east_west)
-                time.sleep(0.01)
-        except Exception as e:
-            print(e)
+        while not event.is_set():
+            try:
+                comms = USBCommunications(port="/dev/ttyACM0")
+                comms.write_times(1, 1)
+                header.change_readbacks(north_south=1, east_west=1)
+
+                while not event.is_set():
+                    if header.request_queue.empty():
+                        time_since_transition, transition_time = traffic_canvas.handle_state(comms.read_state())
+                        header.countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
+                    else:
+                        (north_south, east_west) = header.request_queue.get()
+                        comms.write_times(north_south, east_west)
+                        header.change_readbacks(north_south=north_south, east_west=east_west)
+                    time.sleep(0.01)
+            except Exception as e:
+                print(e)
+            time.sleep(0.5)
 
     thread = threading.Thread(target=toggle)
     thread.start()
