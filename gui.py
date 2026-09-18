@@ -1,9 +1,10 @@
+from abc import ABC, abstractmethod
 import queue
 import threading
 import time
 import tkinter as tk
 from tkinter import ttk
-from typing import Callable
+from typing import Callable, Generic, TypeVar, final
 
 import serial
 from crc import read_state, write_times
@@ -39,7 +40,7 @@ class RequestedDuration():
         return self.last_value
 
 class DurationRequests():
-    def __init__(self, parent: tk.LabelFrame, handle_times: Callable[[tuple[int, int]], None]):
+    def __init__(self, parent: ttk.LabelFrame, handle_times: Callable[[tuple[int, int]], None]):
         self.north_south = RequestedDuration(parent=parent, row=0, name="North - South", handle_change=self.handle_change)
         self.east_west = RequestedDuration(parent=parent, row=1, name="East - West", handle_change=self.handle_change)
         self.handle_times = handle_times
@@ -107,8 +108,13 @@ class TrafficLight():
         self.yellow.change_color(BRIGHT_YELLOW if state & (1 << 1) else DIM_YELLOW)
         self.green.change_color(BRIGHT_GREEN if state & (1 << 0) else DIM_GREEN)
 
+class Light(ABC):
+    @abstractmethod
+    def handle_state(self, state: int):
+        pass
 
-class PedestrianLight():
+@final
+class PedestrianLight(Light):
     def __init__(self, canvas: tk.Canvas, cx: int, cy: int):
         self.red = Circle(canvas, cx=cx, cy=cy - 15, r=10, fill=DIM_RED)
         self.green = Circle(canvas, cx=cx, cy=cy + 15, r=10, fill=DIM_GREEN)
@@ -117,24 +123,17 @@ class PedestrianLight():
         self.red.change_color(BRIGHT_RED if state & (1 << 1) else DIM_RED)
         self.green.change_color(BRIGHT_GREEN if state & (1 << 0) else DIM_GREEN)
 
-class PedestrianPair():
-    def __init__(self, first: PedestrianLight, second: PedestrianLight):
-        self.first = first
-        self.second = second
-
-    def handle_state(self, state: int):
-        self.first.handle_state(state)
-        self.second.handle_state(state)
-
-class ReqLight():
+@final
+class ReqLight(Light):
     def __init__(self, canvas: tk.Canvas, cx: int, cy: int):
         self.circle = Circle(canvas, cx=cx, cy=cy, r=8, fill=DIM_BLUE)
 
     def handle_state(self, state: int):
         self.circle.change_color(BRIGHT_BLUE if state & (1 << 0) else DIM_BLUE)
 
-class PedRequest():
-    def __init__(self, first: ReqLight, second: ReqLight):
+T = TypeVar("T", bound=Light)
+class LightPair(Generic[T]):
+    def __init__(self, first: T, second: T):
         self.first = first
         self.second = second
 
@@ -148,40 +147,68 @@ class Lights():
         self.south = TrafficLight(canvas=canvas, cx=350, cy=600)
         self.east = TrafficLight(canvas=canvas, cx=100, cy=350)
         self.west = TrafficLight(canvas=canvas, cx=600, cy=350)
-        self.north_ped = PedestrianPair(first=PedestrianLight(canvas=canvas, cx=150, cy=100), second=PedestrianLight(canvas=canvas, cx=550, cy=100))
-        self.east_ped = PedestrianPair(first=PedestrianLight(canvas=canvas, cx=600, cy=150), second=PedestrianLight(canvas=canvas, cx=600, cy=550))
-        self.south_ped = PedestrianPair(first=PedestrianLight(canvas=canvas, cx=150, cy=600), second=PedestrianLight(canvas=canvas, cx=550, cy=600))
-        self.west_ped = PedestrianPair(first=PedestrianLight(canvas=canvas, cx=100, cy=150), second=PedestrianLight(canvas=canvas, cx=100, cy=550))
-        self.north_req = PedRequest(first=ReqLight(canvas=canvas, cx=175, cy=100), second=ReqLight(canvas=canvas, cx=525, cy=100))
-        self.east_req = PedRequest(first=ReqLight(canvas=canvas, cx=600, cy=200), second=ReqLight(canvas=canvas, cx=600, cy=500))
-        self.south_req = PedRequest(first=ReqLight(canvas=canvas, cx=175, cy=600), second=ReqLight(canvas=canvas, cx=525, cy=600))
-        self.west_req = PedRequest(first=ReqLight(canvas=canvas, cx=100, cy=200), second=ReqLight(canvas=canvas, cx=100, cy=500))
+        self.north_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=150, cy=100), second=PedestrianLight(canvas=canvas, cx=550, cy=100))
+        self.east_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=600, cy=150), second=PedestrianLight(canvas=canvas, cx=600, cy=550))
+        self.south_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=150, cy=600), second=PedestrianLight(canvas=canvas, cx=550, cy=600))
+        self.west_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=100, cy=150), second=PedestrianLight(canvas=canvas, cx=100, cy=550))
+        self.north_req = LightPair(first=ReqLight(canvas=canvas, cx=175, cy=100), second=ReqLight(canvas=canvas, cx=525, cy=100))
+        self.east_req = LightPair(first=ReqLight(canvas=canvas, cx=600, cy=200), second=ReqLight(canvas=canvas, cx=600, cy=500))
+        self.south_req = LightPair(first=ReqLight(canvas=canvas, cx=175, cy=600), second=ReqLight(canvas=canvas, cx=525, cy=600))
+        self.west_req = LightPair(first=ReqLight(canvas=canvas, cx=100, cy=200), second=ReqLight(canvas=canvas, cx=100, cy=500))
 
     def handle_state(self, state: bytes):
-        self.handle_traffic(state[0])
-        self.handle_pedestrian(state[1])
-        self.handle_request(state[2])
+        self._handle_traffic(state[0])
+        self._handle_pedestrian(state[1])
+        self._handle_request(state[2])
         time_since_transition = state[3] / 10
         transition_cutoff = state[4] / 10
         return time_since_transition, transition_cutoff
 
-    def handle_traffic(self, value: int):
+    def _handle_traffic(self, value: int):
         self.north.handle_state(value >> 4)
         self.south.handle_state(value >> 4)
         self.east.handle_state(value)
         self.west.handle_state(value)
 
-    def handle_pedestrian(self, value: int):
+    def _handle_pedestrian(self, value: int):
         self.north_ped.handle_state(value >> 6)
         self.east_ped.handle_state(value >> 4)
         self.south_ped.handle_state(value >> 2)
         self.west_ped.handle_state(value)
 
-    def handle_request(self, value: int):
+    def _handle_request(self, value: int):
         self.north_req.handle_state(value >> 3)
         self.east_req.handle_state(value >> 2)
         self.south_req.handle_state(value >> 1)
         self.west_req.handle_state(value)
+
+class TrafficCanvas():
+    def __init__(self, parent: tk.Tk, row: int):
+        traffic_group = ttk.LabelFrame(parent, text="Traffic State")
+        traffic_group.grid(row=row, column=0, columnspan=3, padx=15, sticky="nsew")
+        canvas = tk.Canvas(traffic_group, width=700, height=700, bg="white")
+        canvas.grid(row=0, column=0, padx=10, pady=10)
+        self.lights = Lights(canvas=canvas)
+
+    def handle_state(self, state: bytes):
+        return self.lights.handle_state(state)
+
+class Header():
+    def __init__(self, parent: tk.Tk, row: int):
+        requested_duration_group = ttk.LabelFrame(parent, text="Requested Durations")
+        requested_duration_group.grid(row=row, column=0, padx=15, pady=15, sticky="nsew")
+    
+        request_queue = queue.Queue[tuple[int, int]]()
+        self.duration_requests = DurationRequests(parent=requested_duration_group, handle_times=request_queue.put)
+    
+        duration_readback_group = ttk.LabelFrame(parent, text="Duration Readbacks")
+        duration_readback_group.grid(row=row, column=1, padx=15, pady=15, sticky="nsew")
+        self.north_south_readback = ReadbackDuration(parent=duration_readback_group, row=0, name="North - South")
+        self.east_west_readback = ReadbackDuration(parent=duration_readback_group, row=1, name="East - West")
+    
+        transition_countdown_group = ttk.LabelFrame(parent, text="Transition")
+        transition_countdown_group.grid(row=row, column=2, padx=15, pady=15, sticky="nsew")
+        self.countdown_timer = CountdownTimer(transition_countdown_group)
 
 if __name__ == "__main__":
     # 1. Create the main window
@@ -195,29 +222,8 @@ if __name__ == "__main__":
     style = ttk.Style()
     style.configure("Readback.TLabel", background="yellow")
     style.configure("Countdown.TLabel", font=("Segoe UI", 24, "bold"), background="yellow")
-
-    # 2. Create some widgets
-    requested_duration_group = ttk.LabelFrame(root, text="Requested Durations")
-    requested_duration_group.grid(row=0, column=0, padx=15, pady=15, sticky="nsew")
-
-    request_queue = queue.Queue[tuple[int, int]]()
-    DurationRequests(parent=requested_duration_group, handle_times=request_queue.put)
-
-    duration_readback_group = ttk.LabelFrame(root, text="Duration Readbacks")
-    duration_readback_group.grid(row=0, column=1, padx=15, pady=15, sticky="nsew")
-    north_south_readback = ReadbackDuration(parent=duration_readback_group, row=0, name="North - South")
-    east_west_readback = ReadbackDuration(parent=duration_readback_group, row=1, name="East - West")
-
-    transition_countdown_group = ttk.LabelFrame(root, text="Transition")
-    transition_countdown_group.grid(row=0, column=2, padx=15, pady=15, sticky="nsew")
-    countdown_timer = CountdownTimer(transition_countdown_group)
-
-    traffic_group = ttk.LabelFrame(root, text="Traffic State")
-    traffic_group.grid(row=1, column=0, columnspan=3, padx=15, sticky="nsew")
-    canvas = tk.Canvas(traffic_group, width=700, height=700, bg="white")
-    canvas.grid(row=0, column=0, padx=10, pady=10)
-
-    lights = Lights(canvas=canvas)
+    header = Header(parent=root, row=0)
+    traffic_canvas = TrafficCanvas(parent=root, row=1)
 
     event = threading.Event()
     def toggle():
@@ -228,7 +234,7 @@ if __name__ == "__main__":
             east_west_readback.change_value(1)
             while not event.is_set():
                 if request_queue.empty():
-                    time_since_transition, transition_time = lights.handle_state(read_state(device))
+                    time_since_transition, transition_time = traffic_canvas.handle_state(read_state(device))
                     countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
                 else:
                     (north_south, east_west) = request_queue.get()
