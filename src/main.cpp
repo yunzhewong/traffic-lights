@@ -99,7 +99,11 @@ int main() {
 
             if (type == 0x01) {
                 traffic_state.change_green_durations(data1, data2);
-                uint8_t data[6] = { DELIMITER, 0x06, 0x01, data1, data2, 0x00};
+                uint8_t data[6] = { DELIMITER, 0x06, 0x01, traffic_state.green_durations.north_south, traffic_state.green_durations.east_west, 0x00};
+                data[5] = crc8(data, 5);
+                usb_connection.write(data, 6);
+            } else if (type == 0x02) {
+                uint8_t data[6] = { DELIMITER, 0x06, 0x02, traffic_state.green_durations.north_south, traffic_state.green_durations.east_west, 0x00};
                 data[5] = crc8(data, 5);
                 usb_connection.write(data, 6);
             } else {

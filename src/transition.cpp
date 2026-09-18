@@ -1,4 +1,5 @@
 #include "transition.h"
+#include <pico/platform/compiler.h>
 
 double calc_time_since_transition_s(uint64_t current_time_us,
                                     uint64_t transition_time_us) {
@@ -46,7 +47,7 @@ void transition_state_t::transition_after_duration(uint8_t duration_s,
   double time_since_transition_s =
       calc_time_since_transition_s(current_time_us, transition_time_us);
   this->current_ticks = (uint8_t)(time_since_transition_s / TICK_PERIOD);
-  this->transition_ticks = (uint8_t)((double)duration_s / TICK_PERIOD);
+  this->transition_ticks = (uint8_t)((double)duration_s / TICK_PERIOD); // this is will fit because duration_s is less than MAX_PERIOD (20s)
   if (time_since_transition_s > duration_s) {
     this->state_enum = target_state;
     this->transition_time_us = current_time_us;
@@ -171,8 +172,12 @@ void traffic_state_t::handle_transition() {
 }
 void traffic_state_t::change_green_durations(uint8_t north_south,
                                              uint8_t east_west) {
-  this->green_durations.north_south = north_south;
-  this->green_durations.east_west = east_west;
+  if (north_south >= MIN_DURATION && north_south <= MAX_DURATION) {
+    this->green_durations.north_south = north_south;
+  }
+  if (east_west >= MIN_DURATION && east_west <= MAX_DURATION) {
+    this->green_durations.east_west = east_west;
+  }                                              
 }
 
 packed_state_t traffic_state_t::pack_state() {
