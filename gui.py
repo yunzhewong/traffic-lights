@@ -6,8 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Callable, Generic, TypeVar, final
 
-import serial
-from crc import USBCommunications, read_state, write_times
+from crc import Times, USBCommunications
 
 
 class RequestedDuration():
@@ -40,13 +39,13 @@ class RequestedDuration():
         return self.last_value
 
 class DurationRequests():
-    def __init__(self, parent: ttk.LabelFrame, handle_times: Callable[[tuple[int, int]], None]):
+    def __init__(self, parent: ttk.LabelFrame, handle_times: Callable[[Times], None]):
         self.north_south = RequestedDuration(parent=parent, row=0, name="North - South", handle_change=self.handle_change)
         self.east_west = RequestedDuration(parent=parent, row=1, name="East - West", handle_change=self.handle_change)
         self.handle_times = handle_times
 
     def handle_change(self):
-        self.handle_times((self.north_south.get_value(), self.east_west.get_value()))
+        self.handle_times(Times(north_south=self.north_south.get_value(), east_west=self.east_west.get_value()))
 
 class ReadbackDuration():
     def __init__(self, parent: ttk.LabelFrame, row: int, name: str):
@@ -78,7 +77,7 @@ class Header():
         requested_duration_group = ttk.LabelFrame(parent, text="Requested Durations")
         requested_duration_group.grid(row=row, column=0, padx=15, pady=15, sticky="nsew")
     
-        self.request_queue = queue.Queue[tuple[int, int]]()
+        self.request_queue = queue.Queue[Times]()
         self.duration_requests = DurationRequests(parent=requested_duration_group, handle_times=self.request_queue.put)
     
         duration_readback_group = ttk.LabelFrame(parent, text="Duration Readbacks")
@@ -90,9 +89,9 @@ class Header():
         transition_countdown_group.grid(row=row, column=2, padx=15, pady=15, sticky="nsew")
         self.countdown_timer = CountdownTimer(transition_countdown_group)
 
-    def change_readbacks(self, north_south: int, east_west: int):
-        self.north_south_readback.change_value(north_south)
-        self.east_west_readback.change_value(east_west)
+    def change_readbacks(self, times: Times):
+        self.north_south_readback.change_value(times.north_south)
+        self.east_west_readback.change_value(times.east_west)
 
 class Circle():
     def __init__(self, canvas: tk.Canvas, cx: int, cy: int, r: int, fill: str):
@@ -234,17 +233,17 @@ if __name__ == "__main__":
         while not event.is_set():
             try:
                 comms = USBCommunications(port="/dev/ttyACM0")
-                comms.write_times(1, 1)
-                header.change_readbacks(north_south=1, east_west=1)
+                initial_readback = comms.read_times()
+                header.change_readbacks(initial_readback)
 
                 while not event.is_set():
                     if header.request_queue.empty():
                         time_since_transition, transition_time = traffic_canvas.handle_state(comms.read_state())
                         header.countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
                     else:
-                        (north_south, east_west) = header.request_queue.get()
-                        comms.write_times(north_south, east_west)
-                        header.change_readbacks(north_south=north_south, east_west=east_west)
+                        change_request = header.request_queue.get()
+                        readback = comms.write_times(change_request)
+                        header.change_readbacks(readback)
                     time.sleep(0.01)
             except Exception as e:
                 print(e)
