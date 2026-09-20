@@ -8,7 +8,7 @@ from typing import Callable, Optional
 from google import genai
 from dotenv import load_dotenv
 
-from crc import Times
+from crc import MAX_DURATION, MIN_DURATION, Times
 
 load_dotenv()
 
@@ -34,7 +34,7 @@ def format_input(north_south_text: str, east_west_text: str):
     North/South: {north_south_text}
     East/West: {east_west_text}
     
-    Return two space separated integers (north/south green duration, east/west green duration) indicating the duration in seconds (in range >=1 and <=20)
+    Return two space separated integers (north/south green duration, east/west green duration) indicating the duration in seconds (in range >={MIN_DURATION} and <={MAX_DURATION})
     in the first line in the response, and then explain reasoning in the following lines. 
     
     Where possible, do not use the exact numerical ratio to figure out how long each duration should be. Be creative!  

@@ -13,7 +13,7 @@
 #define PEDESTRIAN_CUTOFF 3
 #define FLASH_PERIOD 0.5
 #define TICK_PERIOD 0.1
-#define MIN_DURATION 1
+#define MIN_DURATION 3 // Needs to be greater >= than pedestrian cutoff
 #define MAX_DURATION 20 // Needs to be <25.5, otherwise uint8_t overflow in transition ticks
 
 

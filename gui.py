@@ -7,7 +7,7 @@ from tkinter import ttk
 from typing import Callable, Generic, Optional, TypeVar, final
 
 from ai import Response, into_response
-from crc import Times, USBCommunications
+from crc import MAX_DURATION, MIN_DURATION, Times, USBCommunications
 
 
 class RequestedDuration():
@@ -18,7 +18,7 @@ class RequestedDuration():
         self.last_value = 1
         self.value = tk.IntVar(value=self.last_value)
         self.setpoint = ttk.Spinbox(
-            parent, from_=1, to=20, increment=1, textvariable=self.value, width=8
+            parent, from_=MIN_DURATION, to=MAX_DURATION, increment=1, textvariable=self.value, width=8
         )
         self.setpoint.grid(row=row, column=1, padx=10, pady=10)
         self.setpoint.bind("<Return>", lambda event: self._confirm_value())
@@ -88,7 +88,10 @@ class Status():
         )
 
     def _set_text(self, t: str):
-        self.label.config(text=t)
+        try:
+            self.label.config(text=t)
+        except:
+            pass
 
     def set_connected(self):
         self._set_text("Connected")
@@ -199,12 +202,12 @@ class Lights():
     def __init__(self, canvas: tk.Canvas):
         self.north = TrafficLight(canvas=canvas, cx=350, cy=100)
         create_text(canvas, 350, 25, "North")
+        self.west = TrafficLight(canvas=canvas, cx=100, cy=350)
+        create_text(canvas, 50, 350, "West")
         self.south = TrafficLight(canvas=canvas, cx=350, cy=600)
         create_text(canvas, 350, 675, "South")
-        self.east = TrafficLight(canvas=canvas, cx=100, cy=350)
-        create_text(canvas, 50, 350, "East")
-        self.west = TrafficLight(canvas=canvas, cx=600, cy=350)
-        create_text(canvas, 650, 350, "West")
+        self.east = TrafficLight(canvas=canvas, cx=600, cy=350)
+        create_text(canvas, 650, 350, "East")
         self.north_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=150, cy=100), second=PedestrianLight(canvas=canvas, cx=550, cy=100))
         self.east_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=600, cy=150), second=PedestrianLight(canvas=canvas, cx=600, cy=550))
         self.south_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=150, cy=600), second=PedestrianLight(canvas=canvas, cx=550, cy=600))

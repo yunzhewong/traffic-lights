@@ -3,6 +3,9 @@ import time
 
 import serial
 
+MIN_DURATION = 3
+MAX_DURATION = 20
+
 @dataclass
 class Times():
     north_south: int
