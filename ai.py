@@ -98,8 +98,8 @@ def sim_ai(on_streamed_text: Callable[[str], None], on_done: Callable[[], None])
 def into_response(response: Response, north_south: str, east_west: str): 
     def on_streamed_text(s: str):
         response.append(s)
-    # generate(format_input(north_south_text=north_south, east_west_text=east_west), on_streamed_text=on_streamed_text, on_done=response.set_finished)
-    sim_ai(on_streamed_text=on_streamed_text, on_done=response.set_finished)
+    generate(format_input(north_south_text=north_south, east_west_text=east_west), on_streamed_text=on_streamed_text, on_done=response.set_finished)
+    # sim_ai(on_streamed_text=on_streamed_text, on_done=response.set_finished)
 
 if __name__ == "__main__":
     response = Response(on_change=lambda: None)

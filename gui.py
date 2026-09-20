@@ -185,12 +185,26 @@ class LightPair(Generic[T]):
         self.first.handle_state(state)
         self.second.handle_state(state)
 
+def create_text(canvas: tk.Canvas, cx: int, cy: int, text: str):
+    return canvas.create_text(
+        cx, cy,           # x, y coordinates (center of text by default)
+        text=text,
+        font=("Arial", 16),
+        fill="black",
+        anchor="center"      # options: n, s, e, w, center, nw, ne, sw, se
+    )
+
+
 class Lights():
     def __init__(self, canvas: tk.Canvas):
         self.north = TrafficLight(canvas=canvas, cx=350, cy=100)
+        create_text(canvas, 350, 25, "North")
         self.south = TrafficLight(canvas=canvas, cx=350, cy=600)
+        create_text(canvas, 350, 675, "South")
         self.east = TrafficLight(canvas=canvas, cx=100, cy=350)
+        create_text(canvas, 50, 350, "East")
         self.west = TrafficLight(canvas=canvas, cx=600, cy=350)
+        create_text(canvas, 650, 350, "West")
         self.north_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=150, cy=100), second=PedestrianLight(canvas=canvas, cx=550, cy=100))
         self.east_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=600, cy=150), second=PedestrianLight(canvas=canvas, cx=600, cy=550))
         self.south_ped = LightPair(first=PedestrianLight(canvas=canvas, cx=150, cy=600), second=PedestrianLight(canvas=canvas, cx=550, cy=600))
