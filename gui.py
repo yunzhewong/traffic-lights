@@ -72,21 +72,45 @@ class CountdownTimer():
     def change_value(self, time_since_transition: float, transition_time: float):
         self.label.config(text=f"{time_since_transition:.1f}/{transition_time:.1f}")
 
+class Status():
+    def __init__(self, parent: tk.Tk, row: int):
+        status_group = ttk.LabelFrame(parent, text="Status")
+        status_group.grid(row=row, column=0, columnspan=3, padx=15, sticky="nsew")
+        ttk.Label(status_group, text="Communications", width=12).grid(
+            row=row, column=0, padx=10, pady=10, sticky="e"
+        )
+        self.label = ttk.Label(status_group, text="Disconnected", style="Readback.TLabel")
+        self.label.grid(
+            row=row, column=2,
+            padx=10, pady=10, 
+            sticky="nsew"
+        )
+
+    def _set_text(self, t: str):
+        self.label.config(text=t)
+
+    def set_connected(self):
+        self._set_text("Connected")
+
+    def set_disconnected(self, err_str: str):
+        self._set_text(f"Disconnected: {err_str}")
+
+
 class Header():
     def __init__(self, parent: tk.Tk, row: int):
         requested_duration_group = ttk.LabelFrame(parent, text="Requested Durations")
-        requested_duration_group.grid(row=row, column=0, padx=15, pady=15, sticky="nsew")
+        requested_duration_group.grid(row=row, column=0, padx=15, sticky="nsew")
     
         self.request_queue = queue.Queue[Times]()
         self.duration_requests = DurationRequests(parent=requested_duration_group, handle_times=self.request_queue.put)
     
         duration_readback_group = ttk.LabelFrame(parent, text="Duration Readbacks")
-        duration_readback_group.grid(row=row, column=1, padx=15, pady=15, sticky="nsew")
+        duration_readback_group.grid(row=row, column=1, padx=15, sticky="nsew")
         self.north_south_readback = ReadbackDuration(parent=duration_readback_group, row=0, name="North - South")
         self.east_west_readback = ReadbackDuration(parent=duration_readback_group, row=1, name="East - West")
     
         transition_countdown_group = ttk.LabelFrame(parent, text="Transition")
-        transition_countdown_group.grid(row=row, column=2, padx=15, pady=15, sticky="nsew")
+        transition_countdown_group.grid(row=row, column=2, padx=15, sticky="nsew")
         self.countdown_timer = CountdownTimer(transition_countdown_group)
 
     def change_readbacks(self, times: Times):
@@ -217,7 +241,7 @@ if __name__ == "__main__":
     # 1. Create the main window
     root = tk.Tk()
     root.title("Traffic Light Control GUI")
-    root.geometry("775x900")  # width x height
+    root.geometry("775x1000")  # width x height
     root.columnconfigure(0, weight=1, minsize=300)
     root.columnconfigure(1, weight=1, minsize=200)
     root.columnconfigure(2, weight=1, minsize=150)
@@ -225,8 +249,9 @@ if __name__ == "__main__":
     style = ttk.Style()
     style.configure("Readback.TLabel", background="yellow")
     style.configure("Countdown.TLabel", font=("Segoe UI", 24, "bold"), background="yellow")
-    header = Header(parent=root, row=0)
-    traffic_canvas = TrafficCanvas(parent=root, row=1)
+    status = Status(parent=root, row=0)
+    header = Header(parent=root, row=1)
+    traffic_canvas = TrafficCanvas(parent=root, row=2)
 
     event = threading.Event()
     def toggle():
@@ -235,6 +260,7 @@ if __name__ == "__main__":
                 comms = USBCommunications(port="/dev/ttyACM0")
                 initial_readback = comms.read_times()
                 header.change_readbacks(initial_readback)
+                status.set_connected()
 
                 while not event.is_set():
                     if header.request_queue.empty():
@@ -246,7 +272,7 @@ if __name__ == "__main__":
                         header.change_readbacks(readback)
                     time.sleep(0.01)
             except Exception as e:
-                print(e)
+                status.set_disconnected(str(e))
             time.sleep(0.5)
 
     thread = threading.Thread(target=toggle)
