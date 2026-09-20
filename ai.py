@@ -41,14 +41,16 @@ def format_input(north_south_text: str, east_west_text: str):
     """ 
 
 class Response():
-    def __init__(self):
+    def __init__(self, on_change: Callable[[], None]):
         self._lock = threading.Lock()
         self._text = ""
         self.done_event = threading.Event()
+        self.on_change = on_change
 
     def append(self, new_text: str):
         with self._lock:
             self._text += new_text
+        self.on_change()
 
     def parse(self) -> Optional[Times]:
         try:
@@ -63,6 +65,15 @@ class Response():
             return Times(north_south=ints[0], east_west=ints[1])
         except:
             return None
+
+    def get_details(self):
+        try:
+            lines = self._text.split("\n")
+            if len(lines) <= 1:
+                return ""
+            return "\n".join(lines[1:])
+        except:
+            return ""
 
 def sim_ai(on_streamed_text: Callable[[str], None], on_done: Callable[[], None]):
     events = [
@@ -81,15 +92,13 @@ def sim_ai(on_streamed_text: Callable[[str], None], on_done: Callable[[], None])
     on_done()
 
 def into_response(response: Response, north_south: str, east_west: str): 
-    response = Response()
-
     def on_streamed_text(s: str):
         response.append(s)
     generate(format_input(north_south_text=north_south, east_west_text=east_west), on_streamed_text=on_streamed_text, on_done=response.done_event.set)
-    sim_ai(on_streamed_text=on_streamed_text, on_done=response.done_event.set)
+    # sim_ai(on_streamed_text=on_streamed_text, on_done=response.done_event.set)
 
 if __name__ == "__main__":
-    response = Response()
+    response = Response(on_change=lambda: None)
 
     def on_streamed_text(s: str):
         response.append(s)

@@ -4,8 +4,9 @@ import threading
 import time
 import tkinter as tk
 from tkinter import ttk
-from typing import Callable, Generic, TypeVar, final
+from typing import Callable, Generic, Optional, TypeVar, final
 
+from ai import Response, into_response
 from crc import Times, USBCommunications
 
 
@@ -97,12 +98,11 @@ class Status():
 
 
 class Header():
-    def __init__(self, parent: tk.Tk, row: int):
-        requested_duration_group = ttk.LabelFrame(parent, text="Requested Durations")
+    def __init__(self, parent: tk.Tk, row: int, request_queue: queue.Queue[Times]):
+        requested_duration_group = ttk.LabelFrame(parent, text="Manually Requested Durations")
         requested_duration_group.grid(row=row, column=0, padx=15, sticky="nsew")
     
-        self.request_queue = queue.Queue[Times]()
-        self.duration_requests = DurationRequests(parent=requested_duration_group, handle_times=self.request_queue.put)
+        self.duration_requests = DurationRequests(parent=requested_duration_group, handle_times=request_queue.put)
     
         duration_readback_group = ttk.LabelFrame(parent, text="Duration Readbacks")
         duration_readback_group.grid(row=row, column=1, padx=15, sticky="nsew")
@@ -237,21 +237,93 @@ class TrafficCanvas():
     def handle_state(self, state: bytes):
         return self.lights.handle_state(state)
 
+class AIInput():
+    def __init__(self, parent: tk.Tk, on_run: Callable[[str, str], None]):
+        ai_input = ttk.LabelFrame(parent, text="AI Input")
+        ai_input.grid(row=0, column=3, rowspan=2, sticky="nsew")
+
+        ns_label = tk.Label(ai_input, text="North/South:")
+        ns_label.grid(row=0, column=0, padx=5, pady=10)
+        self.ns_entry = tk.Entry(ai_input, width=15)
+        self.ns_entry.grid(row=0, column=1, pady=10)
+
+        ew_label = tk.Label(ai_input, text="East/West:")
+        ew_label.grid(row=1, column=0, padx=5, pady=10)
+        self.ew_entry = tk.Entry(ai_input, width=15)
+        self.ew_entry.grid(row=1, column=1, pady=10)
+
+        button = tk.Button(ai_input, text="Submit", command=self.handle_submit)
+        button.grid(row=2, column=0, columnspan=2, pady=10)
+
+        self.on_run = on_run 
+
+    def handle_submit(self):
+        self.on_run(self.ns_entry.get(), self.ew_entry.get())
+
+class AIResponse():
+    def __init__(self, parent: tk.Tk):
+        ai_response = ttk.LabelFrame(parent, text="AI Response")
+        ai_response.grid(row=2, column=3, sticky="nsew")
+        self.label = ttk.Label(ai_response, text=f"", width=25, wraplength=200, style="Readback.TLabel")
+        self.label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+
+    def change_text(self, text: str):
+        self.label.config(text=text)
+
+class AI():
+    def __init__(self, parent: tk.Tk, request_queue: queue.Queue[Times]):
+        self.input = AIInput(parent, on_run=self.on_run)
+        self.response_ui = AIResponse(parent=parent)
+
+        self.request_queue = request_queue
+        self.request_sent = False
+        self.last_response: Optional[Response] = None  
+
+    def on_change(self):
+        if self.last_response is None:
+            return
+
+        if not self.request_sent:
+            parsed_times = self.last_response.parse()
+            if parsed_times is not None:
+                self.request_queue.put(parsed_times)
+                self.request_sent = False
+
+        try:
+            self.response_ui.change_text(self.last_response.get_details())
+        except:
+            pass
+
+    def on_run(self, north_south: str, east_west: str):
+        if self.last_response is not None:
+            if not self.last_response.done_event.is_set():
+                return
+
+        self.request_sent = False
+        self.last_response = Response(on_change=self.on_change)
+        thread = threading.Thread(target=into_response, args=(self.last_response, north_south, east_west))
+        thread.start()
+
 if __name__ == "__main__":
     # 1. Create the main window
     root = tk.Tk()
     root.title("Traffic Light Control GUI")
-    root.geometry("775x1000")  # width x height
+    root.geometry("1010x950")  # width x height
     root.columnconfigure(0, weight=1, minsize=300)
     root.columnconfigure(1, weight=1, minsize=200)
     root.columnconfigure(2, weight=1, minsize=150)
+    root.columnconfigure(3, weight=1, minsize=250)
+
+    request_queue = queue.Queue[Times]()
 
     style = ttk.Style()
     style.configure("Readback.TLabel", background="yellow")
     style.configure("Countdown.TLabel", font=("Segoe UI", 24, "bold"), background="yellow")
     status = Status(parent=root, row=0)
-    header = Header(parent=root, row=1)
+    header = Header(parent=root, row=1, request_queue=request_queue)
     traffic_canvas = TrafficCanvas(parent=root, row=2)
+
+    ai = AI(parent=root, request_queue=request_queue)
 
     event = threading.Event()
     def toggle():
@@ -263,11 +335,11 @@ if __name__ == "__main__":
                 status.set_connected()
 
                 while not event.is_set():
-                    if header.request_queue.empty():
+                    if request_queue.empty():
                         time_since_transition, transition_time = traffic_canvas.handle_state(comms.read_state())
                         header.countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
                     else:
-                        change_request = header.request_queue.get()
+                        change_request = request_queue.get()
                         readback = comms.write_times(change_request)
                         header.change_readbacks(readback)
                     time.sleep(0.01)
