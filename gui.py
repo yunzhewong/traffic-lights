@@ -264,11 +264,19 @@ class AIResponse():
     def __init__(self, parent: tk.Tk):
         ai_response = ttk.LabelFrame(parent, text="AI Response")
         ai_response.grid(row=2, column=3, sticky="nsew")
+        self.state_label = ttk.Label(ai_response, text=f"Done", width=25, style="Readback.TLabel")
+        self.state_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.label = ttk.Label(ai_response, text=f"", width=25, wraplength=200, style="Readback.TLabel")
-        self.label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        self.label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
 
     def change_text(self, text: str):
         self.label.config(text=text)
+
+    def set_finished(self, is_finished: bool):
+        if is_finished:
+            self.state_label.config(text="Done")
+        else:
+            self.state_label.config(text="Generating...")
 
 class AI():
     def __init__(self, parent: tk.Tk, request_queue: queue.Queue[Times]):
@@ -277,11 +285,13 @@ class AI():
 
         self.request_queue = request_queue
         self.request_sent = False
-        self.last_response: Optional[Response] = None  
+        self.last_response: Optional[Response] = None
 
     def on_change(self):
         if self.last_response is None:
             return
+        if self.last_response.done_event.is_set():
+            self.response_ui.set_finished(True)
 
         if not self.request_sent:
             parsed_times = self.last_response.parse()
@@ -300,6 +310,7 @@ class AI():
                 return
 
         self.request_sent = False
+        self.response_ui.set_finished(False)
         self.last_response = Response(on_change=self.on_change)
         thread = threading.Thread(target=into_response, args=(self.last_response, north_south, east_west))
         thread.start()
