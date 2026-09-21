@@ -2,28 +2,28 @@
 
 hook: ai augmented traffic lights
 part 1: hardware
--> mechanical
-- CAD design and 3d printing (bambulab a1 printer)
-- rigidity and constructability in assembly (beams moment of inertia, teardrop shape)
-- modular designs for ease of replacement (extendability of base)
-
 -> electronics
-- defining limiting factors (28 leds + 8 buttons, 50mA max output), off pure power
-- basic electrical format (current amplifier / pull up resistor) 
-- ordering off datasheets
-- PCB design, ordering and soldering
+- defining requirements (off just power) and limiting factors (28 leds + 8 buttons, 50mA max output)
+- basic electrical format (bjt current amplifier / gpio pull up resistor) 
+- purchasing components, optimising for construction at home
+- placing and routing PCB footprints, ordering and soldering
+
+-> mechanical
+- choosing a practical and reliable layout 
+- 3d design and printing of structural pieces, taking into account rigidity, ease of printing, and modularity
+- selecting a base material (MDF), marking out and drilling holes
+- screwing and tightening assembly for the whole structure
 
 -> electrical
-- cable routing and organisation
-- twisting and tightening wires
-- fault finding 
+- selecting cable dimensions, routing, and organising them alongside mechanical supports
+- ensuring conductivity in critical conditions, by twisting and tightening with appropriate strain relief. 
+- procedural fault finding and resolving with root cause analysis 
 
 part 2: software
 - interfacing with hardware (gpio + usb)
 - creating abstractions (set_red to mean red on, yellow off, green off)
-- enabling stream-based serial communications (protocol design with delimiter, length, crc + parsing)
-- limits (controller enabled)
-- downloading code to the microcontroller
+- implementing a time and event driven state machine
+- enabling stream-based safe-limited serial communications (protocol design with delimiter, length, crc + parsing)
 - connecting with an AI api key (google ai studio)
 - prompting to use a parsable format (space separated format)
 - handling of the response without blocking main thread
