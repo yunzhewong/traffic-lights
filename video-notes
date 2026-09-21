@@ -3,30 +3,30 @@
 hook: ai augmented traffic lights
 part 1: hardware
 -> electronics
-- defined requirements (off just power) and limiting factors (28 leds + 8 buttons, 50mA max output)
-- constructed electrical circuits (bjt current amplifier / gpio pull up resistor) 
-- purchased components following datasheets, optimising for construction at home
-- placed and routed PCB footprints, ordered them and soldered them together
+- defined requirements (off just power) and limiting factors (28 leds + 8 buttons, 50mA max output) | list requirements + factors
+- constructed electrical circuits (bjt current amplifier / gpio pull up resistor) | show circuits 
+- purchased components following datasheets, optimising for construction at home | scroll through jaycar/core electronics
+- placed and routed PCB footprints, ordered them and soldered them together | show the two types of pcbs
 
 -> mechanical
-- ideate a practical and robust layout 
-- designed 3d models and printed structural pieces, taking into account rigidity, ease of printing, and modularity
-- selected a base material (MDF), marking out and drilling holes
-- screwed and tightened assembly for the whole structure
+- ideate a practical and strong layout | sketches on tablet
+- designed 3d models and printed structural pieces, taking into account rigidity, ease of printing, and modularity | fusion 360, example piece, i beam, teardrop, extension
+- selected a base material (MDF), marking out and drilling holes | large plate and button
+- screwed and tightened assembly for the whole structure | final assembly
 
 -> electrical
-- selected cable dimensions, routed, and organised them alongside mechanical supports
-- twisted and tightened screw connectors with appropriate strain relief, for long-term reliability. 
-- did some fault finding and resolved issues with root cause analysis 
+- selected cable dimensions, routed, and organised them alongside mechanical supports | open faced view + traffic light wires 
+- twisted and tightened screw connectors with appropriate strain relief, for long-term reliability | screw connector on pcb, 
+- did some fault finding and resolved issues with root cause analysis | multimeter between gpio and ground
 
 part 2: software
-- interfaced with hardware (GPIO + usb)
-- created abstractions over my set of traffic light classes (set_red to mean red on, yellow off, green off)
-- implemented a time and event driven state machine
-- enabled stream-based safe-limited serial communications (protocol design with delimiter, length, crc + parsing)
-- connected with an AI api key (google ai studio)
-- constructed prompts to respond in a parsable format (space separated format)
-- handled the streamed response in a multi-threaded graphical user application
+- interfaced with hardware (GPIO + usb) | gpio classes + usb classes
+- created abstractions over my set of traffic light classes (set_red to mean red on, yellow off, green off) | show function
+- implemented a time and event driven state machine | scroll through state machine
+- designed stream-based safe-limited serial communications (protocol design with delimiter, length, crc + parsing) | protocol + implementation
+- connected with an AI api key (google ai studio) | view on google api screen
+- constructed prompts to respond in a parsable format (space separated format) | show input prompts function
+- handled the streamed response in a multi-threaded graphical user application | show response being generated
 
 conclusion:
 which means my traffic lights can react with the flexibility of AI, while still being bound by human-defined safety limits
