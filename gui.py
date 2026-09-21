@@ -358,19 +358,22 @@ if __name__ == "__main__":
         while not event.is_set():
             try:
                 comms = USBCommunications(port="/dev/ttyACM0")
-                initial_readback = comms.read_times()
-                header.change_readbacks(initial_readback)
-                status.set_connected()
+                try:
+                    initial_readback = comms.read_times()
+                    header.change_readbacks(initial_readback)
+                    status.set_connected()
 
-                while not event.is_set():
-                    if request_queue.empty():
-                        time_since_transition, transition_time = traffic_canvas.handle_state(comms.read_state())
-                        header.countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
-                    else:
-                        change_request = request_queue.get()
-                        readback = comms.write_times(change_request)
-                        header.change_readbacks(readback)
-                    time.sleep(0.01)
+                    while not event.is_set():
+                        if request_queue.empty():
+                            time_since_transition, transition_time = traffic_canvas.handle_state(comms.read_state())
+                            header.countdown_timer.change_value(time_since_transition=time_since_transition, transition_time=transition_time)
+                        else:
+                            change_request = request_queue.get()
+                            readback = comms.write_times(change_request)
+                            header.change_readbacks(readback)
+                        time.sleep(0.01)
+                finally:
+                    comms.close()
             except Exception as e:
                 status.set_disconnected(str(e))
             time.sleep(0.5)

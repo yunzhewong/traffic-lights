@@ -1,0 +1,35 @@
+2 mins video
+
+hook: ai augmented traffic lights
+part 1: hardware
+-> mechanical
+- CAD design and 3d printing (bambulab a1 printer)
+- rigidity and constructability in assembly (beams moment of inertia, teardrop shape)
+- modular designs for ease of replacement (extendability of base)
+
+-> electronics
+- defining limiting factors (28 leds + 8 buttons, 50mA max output), off pure power
+- basic electrical format (current amplifier / pull up resistor) 
+- ordering off datasheets
+- PCB design, ordering and soldering
+
+-> electrical
+- cable routing and organisation
+- twisting and tightening wires
+- fault finding 
+
+part 2: software
+- interfacing with hardware (gpio + usb)
+- creating abstractions (set_red to mean red on, yellow off, green off)
+- enabling stream-based serial communications (protocol design with delimiter, length, crc + parsing)
+- limits (controller enabled)
+- downloading code to the microcontroller
+- connecting with an AI api key (google ai studio)
+- prompting to use a parsable format (space separated format)
+- handling of the response without blocking main thread
+
+conclusion:
+very silly, maybe useful? just don't ask it what happens if the number of r's in strawberry is crossing against the doctor of a mother's son
+
+
+I built AI augmented traffic lights from the ground up, here's what that looks like:
