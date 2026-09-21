@@ -10,26 +10,29 @@ part 1: hardware
 
 -> mechanical
 - choosing a practical and reliable layout 
-- 3d design and printing of structural pieces, taking into account rigidity, ease of printing, and modularity
+- design 3d and printing of structural pieces, taking into account rigidity, ease of printing, and modularity
 - selecting a base material (MDF), marking out and drilling holes
 - screwing and tightening assembly for the whole structure
 
 -> electrical
 - selecting cable dimensions, routing, and organising them alongside mechanical supports
-- ensuring conductivity in critical conditions, by twisting and tightening with appropriate strain relief. 
+- ensuring conductivity in key locations, by twisting and tightening with appropriate strain relief. 
 - procedural fault finding and resolving with root cause analysis 
 
 part 2: software
 - interfacing with hardware (gpio + usb)
-- creating abstractions (set_red to mean red on, yellow off, green off)
+- creating abstractions over my set of traffic light classes (set_red to mean red on, yellow off, green off)
 - implementing a time and event driven state machine
 - enabling stream-based safe-limited serial communications (protocol design with delimiter, length, crc + parsing)
 - connecting with an AI api key (google ai studio)
-- prompting to use a parsable format (space separated format)
+- constructing prompts to respond in a parsable format (space separated format)
 - handling of the response without blocking main thread
 
 conclusion:
-very silly, maybe useful? just don't ask it what happens if the number of r's in strawberry is crossing against the doctor of a mother's son
+which means my traffic lights can react with the flexibility of AI, while still being bound by human-defined safety limits
+maybe its useful? just don't ask it what happens if the number of r's in strawberry is crossing against the doctor of a mother's son
 
 
-I built AI augmented traffic lights from the ground up, here's what that looks like:
+I built AI augmented traffic lights, heres how:
+
+
