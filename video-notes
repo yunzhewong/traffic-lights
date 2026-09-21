@@ -3,30 +3,30 @@
 hook: ai augmented traffic lights
 part 1: hardware
 -> electronics
-- defining requirements (off just power) and limiting factors (28 leds + 8 buttons, 50mA max output)
-- basic electrical format (bjt current amplifier / gpio pull up resistor) 
-- purchasing components, optimising for construction at home
-- placing and routing PCB footprints, ordering and soldering
+- defined requirements (off just power) and limiting factors (28 leds + 8 buttons, 50mA max output)
+- constructed electrical circuits (bjt current amplifier / gpio pull up resistor) 
+- purchased components following datasheets, optimising for construction at home
+- placed and routed PCB footprints, ordered them and soldered them together
 
 -> mechanical
-- choosing a practical and reliable layout 
-- design 3d and printing of structural pieces, taking into account rigidity, ease of printing, and modularity
-- selecting a base material (MDF), marking out and drilling holes
-- screwing and tightening assembly for the whole structure
+- ideate a practical and robust layout 
+- designed 3d models and printed structural pieces, taking into account rigidity, ease of printing, and modularity
+- selected a base material (MDF), marking out and drilling holes
+- screwed and tightened assembly for the whole structure
 
 -> electrical
-- selecting cable dimensions, routing, and organising them alongside mechanical supports
-- ensuring conductivity in key locations, by twisting and tightening with appropriate strain relief. 
-- procedural fault finding and resolving with root cause analysis 
+- selected cable dimensions, routed, and organised them alongside mechanical supports
+- twisted and tightened screw connectors with appropriate strain relief, for long-term reliability. 
+- did some fault finding and resolved issues with root cause analysis 
 
 part 2: software
-- interfacing with hardware (gpio + usb)
-- creating abstractions over my set of traffic light classes (set_red to mean red on, yellow off, green off)
-- implementing a time and event driven state machine
-- enabling stream-based safe-limited serial communications (protocol design with delimiter, length, crc + parsing)
-- connecting with an AI api key (google ai studio)
-- constructing prompts to respond in a parsable format (space separated format)
-- handling of the response without blocking main thread
+- interfaced with hardware (GPIO + usb)
+- created abstractions over my set of traffic light classes (set_red to mean red on, yellow off, green off)
+- implemented a time and event driven state machine
+- enabled stream-based safe-limited serial communications (protocol design with delimiter, length, crc + parsing)
+- connected with an AI api key (google ai studio)
+- constructed prompts to respond in a parsable format (space separated format)
+- handled the streamed response in a multi-threaded graphical user application
 
 conclusion:
 which means my traffic lights can react with the flexibility of AI, while still being bound by human-defined safety limits
