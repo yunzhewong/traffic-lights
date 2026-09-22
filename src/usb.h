@@ -6,10 +6,10 @@
 #define USB_BUFFER_SIZE 256
 
 class USBConnection {
-  private:
+   private:
     int m_device_number;
 
-  public:
+   public:
     USBConnection(int device_number);
     bool is_connected();
     uint32_t readable_bytes();

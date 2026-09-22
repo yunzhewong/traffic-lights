@@ -7,9 +7,7 @@
 
 static USBConnection* debug_channel = nullptr;
 
-void debug_allocate(USBConnection* channel) {
-    debug_channel = channel;
-}
+void debug_allocate(USBConnection* channel) { debug_channel = channel; }
 
 void debug_print(const char* format, ...) {
     va_list args;
@@ -18,9 +16,7 @@ void debug_print(const char* format, ...) {
     va_end(args);
 }
 
-USBConnection::USBConnection(int device_number) {
-    this->m_device_number = device_number;
-}
+USBConnection::USBConnection(int device_number) { this->m_device_number = device_number; }
 
 void USBConnection::vprint(const char* format, va_list args) {
     char print_buffer[128];
@@ -30,13 +26,9 @@ void USBConnection::vprint(const char* format, va_list args) {
     this->flush();
 }
 
-bool USBConnection::is_connected() {
-    return tud_cdc_n_connected(m_device_number);
-};
+bool USBConnection::is_connected() { return tud_cdc_n_connected(m_device_number); };
 
-uint32_t USBConnection::readable_bytes() {
-    return tud_cdc_n_available(m_device_number);
-}
+uint32_t USBConnection::readable_bytes() { return tud_cdc_n_available(m_device_number); }
 
 uint32_t USBConnection::read(uint8_t* buffer, uint32_t max_size) {
     return tud_cdc_n_read(m_device_number, buffer, max_size);
@@ -51,9 +43,7 @@ uint32_t USBConnection::read_with_reset(uint8_t* buffer, uint32_t max_size) {
     return count;
 }
 
-uint32_t USBConnection::write(uint8_t* buffer, uint32_t size) {
-    return tud_cdc_n_write(m_device_number, buffer, size);
-}
+uint32_t USBConnection::write(uint8_t* buffer, uint32_t size) { return tud_cdc_n_write(m_device_number, buffer, size); }
 
 void USBConnection::print(const char* format, ...) {
     va_list args;
@@ -62,17 +52,11 @@ void USBConnection::print(const char* format, ...) {
     va_end(args);
 }
 
-uint32_t USBConnection::writeable_bytes() {
-    return tud_cdc_n_write_available(m_device_number);
-}
+uint32_t USBConnection::writeable_bytes() { return tud_cdc_n_write_available(m_device_number); }
 
-void USBConnection::flush() {
-    tud_cdc_n_write_flush(m_device_number);
-}
+void USBConnection::flush() { tud_cdc_n_write_flush(m_device_number); }
 
-void USBConnection::clear() {
-    tud_cdc_n_write_clear(m_device_number);
-}
+void USBConnection::clear() { tud_cdc_n_write_clear(m_device_number); }
 
 void USBConnection::blocking_send(uint8_t* ptr, uint32_t length) {
     uint32_t written = 0;

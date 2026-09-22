@@ -7,17 +7,10 @@ InputGPIO::InputGPIO(uint pin) {
     gpio_pull_up(pin);
 }
 
-bool InputGPIO::is_triggered() {
-    return !gpio_get(this->pin);
-}
+bool InputGPIO::is_triggered() { return !gpio_get(this->pin); }
 
 void InputGPIO::add_callback(gpio_irq_callback_t callback) {
-    gpio_set_irq_enabled_with_callback(
-        this->pin,
-        GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE,
-        true,
-        callback
-    );
+    gpio_set_irq_enabled_with_callback(this->pin, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true, callback);
 }
 
 OutputGPIO::OutputGPIO(uint pin) {
@@ -33,9 +26,7 @@ void OutputGPIO::set(bool value) {
     this->value = value;
 }
 
-void OutputGPIO::enable() {
-    this->set(true);
-}
+void OutputGPIO::enable() { this->set(true); }
 
 void OutputGPIO::disable() { this->set(false); }
 bool OutputGPIO::is_on() { return this->value; }
