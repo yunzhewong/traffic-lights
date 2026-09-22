@@ -3,12 +3,13 @@
 #include <pico/stdio.h>
 
 #include "usb.h"
-// DELIMITER
-// LENGTH
-// TYPE
-// DATA 1
-// DATA 2
-// CRC
+
+// DELIMITER - starting character
+// LENGTH    - figure out how many characters to wait for
+// TYPE      - switch over the various values
+// DATA 1    - depending on type
+// DATA 2    - depending on type
+// CRC       - validate data transmission
 
 #define READ_TIMEOUT_US 1e6
 #define DELIMITER 0xFF
