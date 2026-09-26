@@ -29,7 +29,9 @@ part 2: software
 - handled the streamed response in a multi-threaded graphical user application | show response being generated
 
 conclusion:
-which means my traffic lights can react with the flexibility of AI, while still being bound by human-defined safety limits
+what happens is the AI generated response get parsed to figure out the ideal durations of green lights
+these durations are then communicated to the microcontroller, which can decide to accept or reject the message, depending on internal limits
+that means my traffic lights can react with the flexibility of AI, while still being bound by human-defined safety limits
 maybe its useful? just don't ask it what happens if the number of r's in strawberry is crossing against the doctor of a mother's son
 
 
